@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Athlete Planner</title>
+    <style>
+        body {
+            background-color: #e0e5ec;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #4a4a4a;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+        .neu-box {
+            background-color: #e0e5ec;
+            border-radius: 20px;
+            box-shadow: 9px 9px 16px rgb(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.5);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .neu-button {
+            background-color: #e0e5ec;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 5px 5px 10px rgb(163,177,198,0.6), -5px -5px 10px rgba(255,255,255, 0.5);
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            color: #4a4a4a;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .neu-button:active {
+            box-shadow: inset 5px 5px 10px rgb(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255, 0.5);
+        }
+        .neu-input {
+            background-color: #e0e5ec;
+            border: none;
+            border-radius: 10px;
+            box-shadow: inset 5px 5px 10px rgb(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255, 0.5);
+            padding: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 1.5rem;
+            color: #4a4a4a;
+            outline: none;
+        }
+        h1, h2, h3 { color: #2d3436; }
+        
+        /* Floating Chat Box */
+        .chat-widget {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 350px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            display: none; /* hidden by default */
+        }
+        .chat-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            box-shadow: inset 5px 5px 10px rgb(163,177,198,0.6), -5px -5px 10px rgba(255,255,255, 0.5);
+            border-radius: 10px;
+            padding: 1rem;
+            background: #e0e5ec;
+            font-size: 0.9rem;
+        }
+        .plan-output {
+            margin-top: 1rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .tag {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            background: #e0e5ec;
+            box-shadow: 2px 2px 5px rgb(163,177,198,0.6), -2px -2px 5px rgba(255,255,255, 0.5);
+            font-weight: bold;
+            margin-right: 0.5rem;
+            color: #0984e3;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; margin-bottom: 2rem;">Autonomous Athlete Planner</h1>
+        
+        <div class="neu-box">
+            <h2>Daily Data Entry</h2>
+            <p>Log your latest workout and current wellness.</p>
+            
+            <div class="grid-2">
+                <div>
+                    <label><strong>Workout RPE</strong> (1-10)</label>
+                    <input type="number" id="rpe" class="neu-input" value="5" min="1" max="10" title="Rating of Perceived Exertion for your last session">
+                </div>
+                <div>
+                    <label><strong>Duration</strong> (Minutes)</label>
+                    <input type="number" id="duration" class="neu-input" value="60" min="0">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label><strong>Fatigue</strong> (1-10, 10=Worst)</label>
+                    <input type="number" id="fatigue" class="neu-input" value="3" min="1" max="10">
+                </div>
+                <div>
+                    <label><strong>Sleep Quality</strong> (1-10, 10=Best)</label>
+                    <input type="number" id="sleep" class="neu-input" value="8" min="1" max="10">
+                </div>
+            </div>
+            
+            <button class="neu-button" onclick="submitAndGeneratePlan()" style="width: 100%; margin-top: 1rem;">Log Data & Generate Plan</button>
+        </div>
+
+        <div class="neu-box" id="plan-container" style="display:none;">
+            <h2>AI Training Plan</h2>
+            <div id="plan-content" class="plan-output"></div>
+        </div>
+    </div>
+
+    <!-- Hovering Chat Widget -->
+    <button class="neu-button chat-toggle" onclick="toggleChat()">💬</button>
+    <div class="neu-box chat-widget" id="chat-widget">
+        <h3 style="margin-top:0;">Coach Agent</h3>
+        <div class="chat-messages" id="chat-messages">
+            <div style="margin-bottom: 10px;"><strong>Agent:</strong> Hello! I am your performance planner. Are you ready to establish your baseline?</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="chat-input" class="neu-input" style="margin:0;" placeholder="Type a message...">
+            <button class="neu-button" style="padding: 0.5rem 1rem;" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let chatHistory = [];
+
+        async function submitAndGeneratePlan() {
+            const fatigue = document.getElementById('fatigue').value;
+            const sleep = document.getElementById('sleep').value;
+            const rpe = document.getElementById('rpe').value;
+            const duration = document.getElementById('duration').value;
+            
+            const container = document.getElementById('plan-container');
+            const content = document.getElementById('plan-content');
+            
+            content.innerHTML = "<i>Logging workload and consulting Load Management AI... (This takes a few seconds)</i>";
+            container.style.display = 'block';
+
+            try {
+                // 1. Submit the workout log so the backend ACWR math updates!
+                const today = new Date().toISOString().split('T')[0];
+                await fetch(`${API_URL}/api/logs/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        athlete_id: 1,
+                        log_date: today,
+                        rpe: parseInt(rpe),
+                        duration_minutes: parseInt(duration),
+                        sleep_quality: parseInt(sleep),
+                        fatigue: parseInt(fatigue),
+                        soreness: parseInt(fatigue) // tying soreness to fatigue for simplicity
+                    })
+                });
+
+                // 2. Request the generated plan considering the new data
+                const res = await fetch(`${API_URL}/api/plan/generate?athlete_id=1&target_date=${today}&current_fatigue=${fatigue}&current_sleep=${sleep}`, {
+                    method: 'POST'
+                });
+                
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    const plan = data.plan;
+                    content.innerHTML = `
+                        <div style="margin-bottom:1.5rem;">
+                            <span class="tag">Intensity: ${plan.intensity}</span>
+                            <span class="tag">Target RPE: ${plan.target_rpe}</span>
+                            <span class="tag">${plan.duration_mins} mins</span>
+                        </div>
+                        <p><strong>Workout Description:</strong><br> ${plan.session_description}</p>
+                        <p><strong>AI Reasoning:</strong><br> ${plan.agent_reasoning}</p>
+                        ${plan.was_revised ? `<div style="margin-top:1rem; padding:1rem; border-radius:10px; background:#ff7675; color:white;"><strong>⚠️ Constraints Triggered:</strong><br> ${plan.constraint_reasons.join('<br>')}</div>` : ''}
+                    `;
+                } else {
+                    content.innerHTML = `<span style="color:red">Error generating plan.</span>`;
+                }
+            } catch (err) {
+                content.innerHTML = `<span style="color:red">Connection error. Make sure the FastAPI server is running on port 8000.</span>`;
+            }
+        }
+
+        function toggleChat() {
+            const chat = document.getElementById('chat-widget');
+            chat.style.display = chat.style.display === 'none' || chat.style.display === '' ? 'flex' : 'none';
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value;
+            if(!msg) return;
+            
+            const messagesDiv = document.getElementById('chat-messages');
+            messagesDiv.innerHTML += `<div style="margin-bottom: 10px;"><strong>You:</strong> ${msg}</div>`;
+            input.value = '';
+            
+            chatHistory.push({"role": "user", "content": msg});
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                const res = await fetch(`${API_URL}/api/onboard/chat`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({history: chatHistory})
+                });
+                const data = await res.json();
+                
+                chatHistory.push({"role": "assistant", "content": data.response});
+                messagesDiv.innerHTML += `<div style="margin-bottom: 10px; color:#0984e3;"><strong>Agent:</strong> ${data.response}</div>`;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (err) {
+                messagesDiv.innerHTML += `<div style="margin-bottom: 10px; color:red;"><strong>System:</strong> Connection error.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
