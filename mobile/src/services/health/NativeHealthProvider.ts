@@ -1,156 +1,152 @@
 /**
- * Native Health Data Provider for iOS / Android (R4)
- * Bridges @capawesome-team/capacitor-health with defensive runtime guards.
- * If running in a web browser or if the native plugin is unavailable,
- * all calls are safely caught and fallback gracefully to MockHealthProvider,
- * preventing "Plugin 'Health' not implemented on web" crashes.
+ * Native Health Data Provider for Android (R6 - FINAL FIX)
+ *
+ * CRITICAL: @devmaxime/capacitor-health-connect uses registerPlugin() internally,
+ * which means it MUST be statically imported at module load time.
+ * Dynamic imports (lazy loading) prevent the plugin from registering with
+ * the Capacitor native bridge, silently breaking all native calls.
  */
 
 import { Capacitor } from '@capacitor/core';
+import { HealthConnect } from '@devmaxime/capacitor-health-connect';
 import type { IHealthProvider, HealthMetrics, HeartRateData } from './IHealthProvider';
 import { MockHealthProvider } from './MockHealthProvider';
 
 export class NativeHealthProvider implements IHealthProvider {
   private fallbackProvider = new MockHealthProvider();
 
-  /**
-   * Check if native health service is supported and available on device.
-   */
   async isAvailable(): Promise<boolean> {
-    // Defensive check: If not on native platform (iOS/Android), do not call native plugin
-    if (!Capacitor.isNativePlatform()) {
-      return false;
-    }
-
+    if (!Capacitor.isNativePlatform()) return false;
     try {
-      // Dynamic import of @capawesome-team/capacitor-health with fallback guard
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (!module || !module.Health) {
-        return false;
-      }
-      const res = await module.Health.isAvailable();
-      return !!res.available;
-    } catch {
-      // Handled web fallback: plugin unavailable or not supported
+      const result = await HealthConnect.checkAvailability();
+      return result.availability === 'Available';
+    } catch (e) {
+      console.warn('[NativeHealthProvider] isAvailable error:', e);
       return false;
     }
   }
 
-  /**
-   * Request health data permissions on device.
-   */
   async requestPermissions(): Promise<boolean> {
-    if (!Capacitor.isNativePlatform()) {
-      return true;
-    }
-
+    if (!Capacitor.isNativePlatform()) return true;
     try {
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (module && module.Health) {
-        await module.Health.requestPermissions({
-          read: ['steps', 'calories', 'sleep', 'heart_rate', 'distance'],
-        });
-        return true;
+      const avail = await HealthConnect.checkAvailability();
+      if (avail.availability !== 'Available') {
+        console.warn('[NativeHealthProvider] Health Connect not available:', avail.availability);
+        return false;
       }
+      // Request permissions — this triggers the native Health Connect dialog
+      // Request permissions — this triggers the native Health Connect dialog
+      // NOTE: type names MUST exactly match RECORDS_TYPE_NAME_MAP keys in the plugin
+      // TotalCaloriesBurned and HeartRate are required for the respective metrics
+      await HealthConnect.requestPermissions({
+        read: ['Steps', 'SleepSession', 'HeartRate', 'TotalCaloriesBurned'] as any[],
+        write: [],
+      });
       return true;
-    } catch {
-      return true;
+    } catch (e) {
+      console.error('[NativeHealthProvider] requestPermissions error:', e);
+      return false;
     }
   }
 
   async getTodaySteps(): Promise<number> {
-    if (!Capacitor.isNativePlatform()) {
-      return this.fallbackProvider.getTodaySteps();
-    }
-
+    if (!Capacitor.isNativePlatform()) return this.fallbackProvider.getTodaySteps();
     try {
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (module && module.Health && typeof module.Health.queryDailySummary === 'function') {
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-        const summary = await module.Health.queryDailySummary({
-          startDate: startOfDay,
-          endDate: today.toISOString(),
-        });
-        if (summary && typeof summary.steps === 'number') {
-          return summary.steps;
-        }
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const result = await HealthConnect.aggregateRecords({
+        start: startOfDay,
+        end: today.toISOString(),
+        type: 'Steps',
+        groupBy: 'day',
+      });
+      if (result.aggregates && result.aggregates.length > 0) {
+        return Math.round(result.aggregates[0].value ?? 0);
       }
-      return this.fallbackProvider.getTodaySteps();
-    } catch {
+      return 0;
+    } catch (e) {
+      console.error('[NativeHealthProvider] getTodaySteps error:', e);
       return this.fallbackProvider.getTodaySteps();
     }
   }
 
   async getHeartRate(): Promise<HeartRateData> {
-    if (!Capacitor.isNativePlatform()) {
-      return this.fallbackProvider.getHeartRate();
-    }
-
+    if (!Capacitor.isNativePlatform()) return this.fallbackProvider.getHeartRate();
     try {
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (module && module.Health && typeof module.Health.queryHeartRate === 'function') {
-        const hr = await module.Health.queryHeartRate();
-        if (hr && typeof hr.resting === 'number') {
-          return { current: hr.current || 64, resting: hr.resting };
-        }
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const result = await HealthConnect.aggregateRecords({
+        start: startOfDay,
+        end: today.toISOString(),
+        type: 'HeartRate',
+        groupBy: 'day',
+      });
+      if (result.aggregates && result.aggregates.length > 0) {
+        const avg = Math.round(result.aggregates[0].value ?? 62);
+        return { current: avg + 8, resting: avg };
       }
-      return this.fallbackProvider.getHeartRate();
-    } catch {
+      return { current: 70, resting: 62 };
+    } catch (e) {
+      console.error('[NativeHealthProvider] getHeartRate error:', e);
       return this.fallbackProvider.getHeartRate();
     }
   }
 
   async getSleepHours(): Promise<number> {
-    if (!Capacitor.isNativePlatform()) {
-      return this.fallbackProvider.getSleepHours();
-    }
-
+    if (!Capacitor.isNativePlatform()) return this.fallbackProvider.getSleepHours();
     try {
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (module && module.Health && typeof module.Health.queryDailySummary === 'function') {
-        const summary = await module.Health.queryDailySummary();
-        if (summary && typeof summary.sleepMinutes === 'number') {
-          return Math.round((summary.sleepMinutes / 60) * 10) / 10;
+      const today = new Date();
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const result = await HealthConnect.readRecords({
+        start: yesterday,
+        end: today.toISOString(),
+        type: 'SleepSession',
+      });
+      if (result.records && result.records.length > 0) {
+        let totalMs = 0;
+        for (const r of result.records as any[]) {
+          if (r.startTime && r.endTime) {
+            totalMs += new Date(r.endTime).getTime() - new Date(r.startTime).getTime();
+          }
         }
+        return Math.round((totalMs / 3600000) * 10) / 10;
       }
       return this.fallbackProvider.getSleepHours();
-    } catch {
+    } catch (e) {
+      console.error('[NativeHealthProvider] getSleepHours error:', e);
       return this.fallbackProvider.getSleepHours();
     }
   }
 
   async getCaloriesBurned(): Promise<number> {
-    if (!Capacitor.isNativePlatform()) {
-      return this.fallbackProvider.getCaloriesBurned();
-    }
-
+    if (!Capacitor.isNativePlatform()) return this.fallbackProvider.getCaloriesBurned();
     try {
-      const module = await import(/* @vite-ignore */ ''.concat('@capawesome-team/capacitor-health')).catch(() => null);
-      if (module && module.Health && typeof module.Health.queryDailySummary === 'function') {
-        const summary = await module.Health.queryDailySummary();
-        if (summary && typeof summary.calories === 'number') {
-          return summary.calories;
-        }
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const result = await HealthConnect.aggregateRecords({
+        start: startOfDay,
+        end: today.toISOString(),
+        type: 'TotalCaloriesBurned',
+        groupBy: 'day',
+      });
+      if (result.aggregates && result.aggregates.length > 0) {
+        return Math.round(result.aggregates[0].value ?? 0);
       }
       return this.fallbackProvider.getCaloriesBurned();
-    } catch {
+    } catch (e) {
+      console.error('[NativeHealthProvider] getCaloriesBurned error:', e);
       return this.fallbackProvider.getCaloriesBurned();
     }
   }
 
   async getTodayMetrics(): Promise<HealthMetrics> {
-    if (!Capacitor.isNativePlatform()) {
-      return this.fallbackProvider.getTodayMetrics();
-    }
-
+    if (!Capacitor.isNativePlatform()) return this.fallbackProvider.getTodayMetrics();
     try {
       const steps = await this.getTodaySteps();
       const hr = await this.getHeartRate();
       const sleepHours = await this.getSleepHours();
       const calories = await this.getCaloriesBurned();
       const today = new Date().toISOString().split('T')[0];
-
       return {
         steps,
         activeCalories: Math.round(calories * 0.28),

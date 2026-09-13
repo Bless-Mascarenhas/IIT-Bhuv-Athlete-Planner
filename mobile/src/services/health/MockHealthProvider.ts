@@ -30,7 +30,7 @@ export class MockHealthProvider implements IHealthProvider {
 
   async getTodayMetrics(): Promise<HealthMetrics> {
     try {
-      const res = await fetch('http://localhost:8000/api/data/dataset_health');
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/data/dataset_health');
       if (res.ok) {
         const json = await res.json();
         if (json.status === 'success') {

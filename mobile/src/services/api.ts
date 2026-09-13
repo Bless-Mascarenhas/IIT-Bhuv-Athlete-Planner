@@ -121,7 +121,7 @@ export const api = {
   
   async completeGoal(userId: number = 1): Promise<boolean> {
     try {
-      const res = await fetch(`/api/user/goal/complete?user_id=${userId}`, {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/user/goal/complete?user_id=${userId}`, {
         method: 'POST',
       });
       return res.ok;
@@ -132,7 +132,7 @@ export const api = {
 
   async updateGoal(goal: string, userId: number = 1): Promise<boolean> {
     try {
-      const res = await fetch(`/api/user/goal?user_id=${userId}`, {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/user/goal?user_id=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goal }),
@@ -143,12 +143,25 @@ export const api = {
     }
   },
 
+  async generatePlan(athleteId: number = 1, goal?: string): Promise<boolean> {
+    try {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ athlete_id: athleteId, active_goal: goal }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   async getProfile(userId: number = 1): Promise<UserProfile> {
     try {
-      const res = await fetch(`/api/user/profile?user_id=${userId}`);
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/user/profile?user_id=${userId}`);
       if (!res.ok) {
         // Try fallback streak endpoint
-        const streakRes = await fetch(`/api/user/streak?user_id=${userId}`);
+        const streakRes = await fetch(`https://pace-backend-2oyk.onrender.com/api/user/streak?user_id=${userId}`);
         if (streakRes.ok) {
           const streakData = await streakRes.json();
           return {
@@ -183,7 +196,7 @@ export const api = {
   async get7DayPlan(athleteId: number = 1, targetDate?: string): Promise<Quest[]> {
     const dateStr = targetDate || new Date().toISOString().split('T')[0];
     try {
-      const res = await fetch(`/api/plan/today?athlete_id=${athleteId}&plan_date=${dateStr}`);
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/plan/today?athlete_id=${athleteId}&plan_date=${dateStr}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.quests) && data.quests.length > 0) {
@@ -195,7 +208,7 @@ export const api = {
       }
 
       // If no quests exist yet for today, attempt to generate them
-      const genRes = await fetch('/api/plan/generate', {
+      const genRes = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ athlete_id: athleteId, target_date: dateStr }),
@@ -225,7 +238,7 @@ export const api = {
     athleteId: number = 1
   ): Promise<{ isCompleted: boolean; currentStreak: number }> {
     try {
-      const res = await fetch(`/api/quests/${questId}/complete`, {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/quests/${questId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_completed: isCompleted, athlete_id: athleteId }),
@@ -254,7 +267,7 @@ export const api = {
   async sendChatMessage(message: string, athleteId: number = 1): Promise<ChatResponse> {
     try {
       // First attempt the dedicated /api/chat endpoint
-      const res = await fetch('/api/chat', {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ athlete_id: athleteId, message }),
@@ -265,7 +278,7 @@ export const api = {
       }
 
       // Fallback to /api/onboard/chat if /api/chat is not yet bound
-      const onboardRes = await fetch('/api/onboard/chat', {
+      const onboardRes = await fetch('https://pace-backend-2oyk.onrender.com/api/onboard/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -310,7 +323,7 @@ export const api = {
    */
   async getEvents(athleteId: number = 1): Promise<CalendarEvent[]> {
     try {
-      const res = await fetch(`/api/events?athlete_id=${athleteId}`);
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/events?athlete_id=${athleteId}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.events)) {
@@ -354,7 +367,7 @@ export const api = {
     duration_minutes?: number;
   }): Promise<boolean> {
     try {
-      const res = await fetch('/api/events/add', {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/events/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
@@ -370,7 +383,7 @@ export const api = {
    */
   async getAcwrHistory(): Promise<AcwrHistoryItem[]> {
     try {
-      const res = await fetch('/api/data/acwr_history');
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/data/acwr_history');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.history)) {
@@ -396,7 +409,7 @@ export const api = {
    */
   async syncHealthTelemetry(payload: any): Promise<boolean> {
     try {
-      const res = await fetch('/api/health/sync', {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/health/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -7,3 +7,6 @@ project(':capacitor-geolocation').projectDir = new File('../node_modules/@capaci
 
 include ':capawesome-capacitor-permissions'
 project(':capawesome-capacitor-permissions').projectDir = new File('../node_modules/@capawesome/capacitor-permissions/android')
+
+include ':devmaxime-capacitor-health-connect'
+project(':devmaxime-capacitor-health-connect').projectDir = new File('../node_modules/@devmaxime/capacitor-health-connect/android')

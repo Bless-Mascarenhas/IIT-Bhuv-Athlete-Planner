@@ -75,11 +75,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await api.updateGoal(goal, 1);
     await refreshProfile();
     // Setting a new goal also recalculates the plan
-    await fetch('/api/plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ athlete_id: 1, active_goal: goal }),
-    });
+    await api.generatePlan(1, goal);
     await refreshQuests();
     setLoading(false);
   }, [refreshProfile, refreshQuests]);
@@ -96,11 +92,14 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const isNative = !(healthProvider.constructor.name === 'MockHealthProvider');
       setHealthProviderName(isNative ? 'Native HealthKit / Health Connect' : 'Mock Health Provider Active');
 
+      // Ensure we have permission before attempting to read metrics
+      await healthProvider.requestPermissions();
+
       const metrics = await healthProvider.getTodayMetrics();
       setHealthMetrics(metrics);
 
-      // Opportunistically sync telemetry to backend
-      await api.syncHealthTelemetry({
+      // Opportunistically sync telemetry to backend (fire-and-forget, won't block UI)
+      api.syncHealthTelemetry({
         user_id: 1,
         steps: metrics.steps,
         active_calories: metrics.activeCalories,
@@ -109,7 +108,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sleep_minutes: metrics.sleepMinutes,
         resting_hr: metrics.restingHeartRate,
         source: metrics.source,
-      });
+      }).catch(() => {/* silent — backend may be cold-starting */});
     } catch {
       // Silent error suppression
     }

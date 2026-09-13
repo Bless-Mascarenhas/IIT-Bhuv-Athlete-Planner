@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Activity, Moon, Heart, Zap, ArrowRight, Target, CheckCircle2, Circle } from 'lucide-react';
+import { Activity, Moon, Heart, Zap, ArrowRight, Target, CheckCircle2, Circle, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
 
 export default function Dashboard() {
-  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading } = useAthlete();
+  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth } = useAthlete();
   const [goalInput, setGoalInput] = useState('');
   const [isSettingGoal, setIsSettingGoal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    if (syncHealth) await syncHealth();
+    setTimeout(() => setIsSyncing(false), 800);
+  };
 
   // const totalQuests = quests.length;
   // const completedQuests = quests.filter((q) => q.is_completed).length;
@@ -97,6 +104,23 @@ export default function Dashboard() {
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3436' }}>Today's Progress vs Targets</h3>
+          <button 
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="neu-btn"
+            style={{
+              padding: '0.4rem',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isSyncing ? '#0984e3' : '#636e72',
+              transform: isSyncing ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.4s ease, color 0.2s ease'
+            }}
+          >
+            <RefreshCw size={18} />
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
