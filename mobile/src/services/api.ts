@@ -159,15 +159,32 @@ export const api = {
 
   async loginGuest(): Promise<number | null> {
     try {
-      const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/guest', {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/auth/guest`, {
         method: 'POST',
       });
       if (res.ok) {
         const data = await res.json();
         return data.user_id;
       }
-    } catch {}
-    return null;
+      return null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  async upgradeGuest(userId: number, name: string, email: string, password: string): Promise<boolean> {
+    try {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/auth/upgrade/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   },
 
   async updateProfile(userId: number, profileData: { name: string; sport_type: string; position: string; active_goal: string }): Promise<boolean> {

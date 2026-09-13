@@ -84,6 +84,23 @@ def guest_login():
     conn.close()
     return {"status": "success", "user_id": user_id}
 
+@app.put("/auth/upgrade/{user_id}")
+def upgrade_guest(user_id: int, req: RegisterRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE users SET email = %s, password_hash = %s, is_guest = false WHERE id = %s",
+            (req.email, req.password, user_id)
+        )
+        conn.commit()
+        return {"status": "success", "message": "Account upgraded successfully"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
 @app.put("/profile/{user_id}")
 def update_profile(user_id: int, req: OnboardingRequest):
     conn = get_db_connection()
