@@ -1,8 +1,10 @@
 import { Flame } from 'lucide-react';
 import { useAthlete } from '../context/AthleteContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
   const { streak, greeting } = useAthlete();
+  const { userId, logout } = useAuth();
 
   return (
     <header
@@ -35,30 +37,47 @@ export default function Header() {
         </span>
       </div>
 
-      <div
-        className="neu-box"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '0.4rem 0.8rem',
-          marginBottom: 0,
-          borderRadius: '999px',
-          backgroundColor: 'var(--bg)',
-          boxShadow: 'inset 2px 2px 4px rgba(163,177,198,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)',
-        }}
-        title={`Current streak: ${streak} consecutive days`}
-      >
-        <span
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {userId === 1 && (
+          <button
+            onClick={() => logout()}
+            className="neu-btn"
+            style={{
+              padding: '0.4rem 0.8rem',
+              borderRadius: '999px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: '#0984e3'
+            }}
+          >
+            Save Account
+          </button>
+        )}
+        <div
+          className="neu-box"
           style={{
-            fontWeight: '800',
-            fontSize: '1rem',
-            color: '#2d3436',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '0.4rem 0.8rem',
+            marginBottom: 0,
+            borderRadius: '999px',
+            backgroundColor: 'var(--bg)',
+            boxShadow: 'inset 2px 2px 4px rgba(163,177,198,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)',
           }}
+          title={`Current streak: ${streak} consecutive days`}
         >
-          {streak}
-        </span>
-        <Flame size={19} color="#fc5200" fill="#fc5200" />
+          <span
+            style={{
+              fontWeight: '800',
+              fontSize: '1rem',
+              color: '#2d3436',
+            }}
+          >
+            {streak}
+          </span>
+          <Flame size={19} color="#fc5200" fill="#fc5200" />
+        </div>
       </div>
     </header>
   );

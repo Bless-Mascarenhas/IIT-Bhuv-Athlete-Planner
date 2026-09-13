@@ -7,6 +7,7 @@ interface AuthContextType {
   hasOnboarded: boolean;
   userId: number | null;
   login: (userId: number) => Promise<void>;
+  startLocalGuest: (formData: any) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
@@ -53,6 +54,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoggedIn(true);
   };
 
+  const startLocalGuest = async (formData: any) => {
+    // Instantly bypass all loading/login screens and set default fallback ID (1)
+    setUserId(1); 
+    setIsLoggedIn(true);
+    setHasOnboarded(true);
+    await Preferences.set({ key: 'hasOnboarded', value: 'true' });
+    
+    // Background cloud sync without waiting
+    (async () => {
+      try {
+        const cloudUserId = await api.loginGuest();
+        if (cloudUserId) {
+          await api.updateProfile(cloudUserId, formData);
+          await login(cloudUserId);
+        }
+      } catch (e) {
+        console.error('Failed to sync guest account to cloud in background', e);
+      }
+    })();
+  };
+
   const completeOnboarding = async () => {
     await Preferences.set({ key: 'hasOnboarded', value: 'true' });
     setHasOnboarded(true);
@@ -73,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasOnboarded,
         userId,
         login,
+        startLocalGuest,
         completeOnboarding,
         logout,
         isLoading,

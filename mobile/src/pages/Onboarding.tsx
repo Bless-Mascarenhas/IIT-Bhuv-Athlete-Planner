@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { ArrowRight, Activity, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Onboarding() {
-  const { userId, completeOnboarding } = useAuth();
+  const { startLocalGuest } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -19,12 +17,8 @@ export default function Onboarding() {
   const handleNext = () => setStep(step + 1);
 
   const handleSubmit = async () => {
-    setLoading(true);
-    if (userId) {
-      await api.updateProfile(userId, formData);
-    }
-    await completeOnboarding();
-    setLoading(false);
+    // Instantly bypass into the app locally!
+    await startLocalGuest(formData);
     navigate('/dashboard');
   };
 
@@ -119,12 +113,11 @@ export default function Onboarding() {
             
             <button 
               onClick={handleSubmit}
-              disabled={loading || !formData.active_goal}
+              disabled={!formData.active_goal}
               className="neu-btn"
               style={{ padding: '1rem', borderRadius: '12px', fontWeight: 800, color: '#00b894', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
             >
-              {loading ? <Activity size={20} className="spin-anim" /> : <Target size={20} />}
-              {loading ? 'Generating AI Plan...' : 'Complete Setup'}
+              <Target size={20} /> Let's Go
             </button>
           </div>
         )}
