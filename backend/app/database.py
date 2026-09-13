@@ -7,7 +7,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:[YOUR-PASSW
 
 def get_db_connection():
     """Returns a PostgreSQL connection with RealDictCursor for dict-like access."""
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def init_db():
@@ -43,6 +43,9 @@ def init_db():
         current_streak INTEGER DEFAULT 12,
         daily_streak INTEGER DEFAULT 12,
         sport_type TEXT DEFAULT 'Soccer',
+        position TEXT DEFAULT '',
+        password_hash TEXT,
+        is_guest BOOLEAN DEFAULT false,
         active_goal TEXT DEFAULT 'Stay Fit',
         goal_end_date DATE,
         last_active_date DATE,
@@ -144,8 +147,23 @@ def init_db():
                 ON CONFLICT (id) DO NOTHING
             ''')
         else:
-            if u[2] is None:
+            if u['last_streak_date'] is None:
                 cursor.execute("UPDATE users SET last_streak_date = CURRENT_DATE - INTERVAL '1 day', last_active_date = CURRENT_DATE - INTERVAL '1 day' WHERE id=1")
+
+    # Dynamic migrations for users table
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='users'")
+    existing_cols = [row['column_name'] for row in cursor.fetchall()]
+
+    user_migrations = {
+        'position': 'TEXT DEFAULT \'\'',
+        'password_hash': 'TEXT',
+        'is_guest': 'BOOLEAN DEFAULT false'
+    }
+
+    for col_name, col_def in user_migrations.items():
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+
 
     conn.commit()
     conn.close()

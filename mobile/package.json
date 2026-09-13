@@ -14,6 +14,7 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/geolocation": "^8.2.2",
     "@capacitor/ios": "^8.5.2",
+    "@capacitor/preferences": "^8.0.1",
     "@capawesome/capacitor-permissions": "^0.1.2",
     "@devmaxime/capacitor-health-connect": "^1.1.0",
     "lucide-react": "^1.45.0",

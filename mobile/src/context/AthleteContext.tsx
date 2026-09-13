@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { api, type UserProfile, type Quest } from '../services/api';
 import { getHealthProvider, type HealthMetrics } from '../services/health';
+import { useAuth } from './AuthContext';
 
 export interface AthleteContextType {
   athlete: UserProfile | null;
@@ -49,43 +50,48 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   
 
+  const { userId } = useAuth();
   const healthProvider = useMemo(() => getHealthProvider(), []);
 
   const refreshProfile = useCallback(async () => {
+    if (!userId) return;
     try {
-      const profile = await api.getProfile(1);
+      const profile = await api.getProfile(userId);
       setAthlete(profile);
       setStreak(profile.current_streak ?? 12);
     } catch {
       // Fallback already handled in api.ts
     }
-  }, []);
+  }, [userId]);
 
   const refreshQuests = useCallback(async () => {
+    if (!userId) return;
     try {
-      const todayQuests = await api.get7DayPlan(1);
+      const todayQuests = await api.get7DayPlan(userId);
       setQuests(todayQuests);
     } catch {
       // Fallback already handled in api.ts
     }
-  }, []);
+  }, [userId]);
 
   const updateGoal = useCallback(async (goal: string) => {
+    if (!userId) return;
     setLoading(true);
-    await api.updateGoal(goal, 1);
+    await api.updateGoal(goal, userId);
     await refreshProfile();
     // Setting a new goal also recalculates the plan
-    await api.generatePlan(1, goal);
+    await api.generatePlan(userId, goal);
     await refreshQuests();
     setLoading(false);
-  }, [refreshProfile, refreshQuests]);
+  }, [userId, refreshProfile, refreshQuests]);
 
   const completeGoal = useCallback(async () => {
+    if (!userId) return;
     setLoading(true);
-    await api.completeGoal(1);
+    await api.completeGoal(userId);
     await refreshProfile();
     setLoading(false);
-  }, [refreshProfile]);
+  }, [userId, refreshProfile]);
 
   const syncHealth = useCallback(async () => {
     try {
@@ -100,7 +106,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // Opportunistically sync telemetry to backend (fire-and-forget, won't block UI)
       api.syncHealthTelemetry({
-        user_id: 1,
+        user_id: userId || 1,
         steps: metrics.steps,
         active_calories: metrics.activeCalories,
         calories_burned: metrics.caloriesBurned,
@@ -112,12 +118,13 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch {
       // Silent error suppression
     }
-  }, [healthProvider]);
+  }, [userId, healthProvider]);
 
   // Initial load
   useEffect(() => {
     let isMounted = true;
     async function init() {
+      if (!userId) return;
       setLoading(true);
       await Promise.all([refreshProfile(), refreshQuests(), syncHealth()]);
       if (isMounted) setLoading(false);
@@ -126,7 +133,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       isMounted = false;
     };
-  }, [refreshProfile, refreshQuests, syncHealth]);
+  }, [userId, refreshProfile, refreshQuests, syncHealth]);
 
   /**
    * Toggle quest completion and dynamically increment streak on completion.
@@ -156,13 +163,15 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       // Asynchronously notify backend
-      api.completeQuest(questId, targetNewState, 1).then((res) => {
-        if (res && typeof res.currentStreak === 'number') {
-          setStreak(res.currentStreak);
-        }
-      }).catch(() => {
-        // Fallback state retained
-      });
+      if (userId) {
+        api.completeQuest(questId, targetNewState, userId).then((res) => {
+          if (res && typeof res.currentStreak === 'number') {
+            setStreak(res.currentStreak);
+          }
+        }).catch(() => {
+          // Fallback state retained
+        });
+      }
 
       return updated;
     });

@@ -11,6 +11,7 @@ export interface UserProfile {
   sport_type?: string;
   active_goal?: string;
   goal_end_date?: string;
+  position?: string;
   daily_streak: number;
   current_streak: number;
   last_active_date?: string;
@@ -60,7 +61,8 @@ export interface AcwrHistoryItem {
 const DEFAULT_PROFILE: UserProfile = {
   id: 1,
   name: 'Alex Rivera',
-  sport_type: 'Football (Forward)',
+  sport_type: 'Football',
+  position: 'Forward',
   active_goal: 'Stay Fit',
   goal_end_date: undefined,
   daily_streak: 12,
@@ -114,6 +116,72 @@ const DEFAULT_FALLBACK_QUESTS: Quest[] = [
 ];
 
 export const api = {
+  /**
+   * Ping backend to wake up Render container
+   */
+  async wakeUp(): Promise<void> {
+    try {
+      await fetch('https://pace-backend-2oyk.onrender.com/health');
+    } catch {
+      // ignore
+    }
+  },
+
+  async login(email: string, password: string): Promise<number | null> {
+    try {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.user_id;
+      }
+    } catch {}
+    return null;
+  },
+
+  async register(name: string, email: string, password: string): Promise<number | null> {
+    try {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.user_id;
+      }
+    } catch {}
+    return null;
+  },
+
+  async loginGuest(): Promise<number | null> {
+    try {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/guest', {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.user_id;
+      }
+    } catch {}
+    return null;
+  },
+
+  async updateProfile(userId: number, profileData: { name: string; sport_type: string; position: string; active_goal: string }): Promise<boolean> {
+    try {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/profile/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData),
+      });
+      return res.ok;
+    } catch {}
+    return false;
+  },
+
   /**
    * Fetch current athlete profile and streak.
    */
@@ -181,7 +249,8 @@ export const api = {
       return {
         id: data.id || userId,
         name: data.name || DEFAULT_PROFILE.name,
-        sport_type: data.user?.sport_type || DEFAULT_PROFILE.sport_type,
+        sport_type: data.sport_type || data.user?.sport_type || DEFAULT_PROFILE.sport_type,
+        position: data.position || data.user?.position || DEFAULT_PROFILE.position,
         daily_streak: data.daily_streak ?? 12,
         current_streak: data.current_streak ?? 12,
         active_goal: data.active_goal || 'Stay Fit',

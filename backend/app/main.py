@@ -24,6 +24,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health_check():
+    """Lightweight endpoint to wake up the server."""
+    return {"status": "awake"}
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class OnboardingRequest(BaseModel):
+    name: str
+    sport_type: str
+    position: str
+    active_goal: str
+
+@app.post("/auth/register")
+def register_user(req: RegisterRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (name, email, password_hash, is_guest) VALUES (%s, %s, %s, false) RETURNING id",
+            (req.name, req.email, req.password)
+        )
+        user_id = cursor.fetchone()['id']
+        conn.commit()
+        return {"status": "success", "user_id": user_id}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+@app.post("/auth/login")
+def login_user(req: LoginRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE email = %s AND password_hash = %s", (req.email, req.password))
+    u = cursor.fetchone()
+    conn.close()
+    if u:
+        return {"status": "success", "user_id": u['id']}
+    raise HTTPException(status_code=401, detail="Invalid email or password")
+
+@app.post("/auth/guest")
+def guest_login():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO users (name, sport_type, is_guest) VALUES ('Guest', 'General', true) RETURNING id"
+    )
+    user_id = cursor.fetchone()['id']
+    conn.commit()
+    conn.close()
+    return {"status": "success", "user_id": user_id}
+
+@app.put("/profile/{user_id}")
+def update_profile(user_id: int, req: OnboardingRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    end_date = (date.today() + timedelta(days=6)).strftime("%Y-%m-%d")
+    cursor.execute('''
+        UPDATE users 
+        SET name = %s, sport_type = %s, position = %s, active_goal = %s, goal_end_date = %s
+        WHERE id = %s
+    ''', (req.name, req.sport_type, req.position, req.active_goal, end_date, user_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Profile updated successfully"}
+
 
 # --- Pydantic Models for Input Validation ---
 
