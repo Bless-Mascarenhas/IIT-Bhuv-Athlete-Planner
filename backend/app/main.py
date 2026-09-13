@@ -458,27 +458,35 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
 
     daily_streak = user['daily_streak'] if (user and user['daily_streak'] is not None) else 0
 
+    # Always check stats to determine all_completed
+    cursor.execute('''
+        SELECT COUNT(*) as total, SUM(is_completed) as completed
+        FROM training_plans
+        WHERE athlete_id = %s AND plan_date = %s
+    ''', (aid, plan_date_str))
+    stats = cursor.fetchone()
+    all_completed = (stats['total'] > 0 and stats['total'] == stats['completed'])
+    
+    last_streak = user['last_streak_date'] if user else None
+
     if is_completed:
-        # Check if all quests for this date are completed
-        cursor.execute('''
-            SELECT COUNT(*) as total, SUM(is_completed) as completed
-            FROM training_plans
-            WHERE athlete_id = %s AND plan_date = %s
-        ''', (aid, plan_date_str))
-        stats = cursor.fetchone()
-        all_completed = (stats['total'] > 0 and stats['total'] == stats['completed'])
-
-        # Increment streak if all completed or if streak hasn't been credited today
-        last_streak = user['last_streak_date'] if user else None
-        if last_streak != today_str:
+        # Increment streak only if ALL quests for today are completed
+        if all_completed and last_streak != today_str:
             daily_streak += 1
+            last_streak = today_str
+    else:
+        # Decrement streak if they unchecked a task and it was previously all completed today
+        if not all_completed and last_streak == today_str:
+            daily_streak = max(0, daily_streak - 1)
+            # Roll back last_streak_date to yesterday so it can be re-earned
+            last_streak = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-        if user:
-            cursor.execute('''
-                UPDATE users
-                SET daily_streak = %s, current_streak = %s, last_streak_date = %s, last_active_date = %s
-                WHERE id = %s
-            ''', (daily_streak, daily_streak, today_str, today_str, user['id']))
+    if user:
+        cursor.execute('''
+            UPDATE users
+            SET daily_streak = %s, current_streak = %s, last_streak_date = %s, last_active_date = %s
+            WHERE id = %s
+        ''', (daily_streak, daily_streak, last_streak, today_str, user['id']))
 
     conn.commit()
     conn.close()

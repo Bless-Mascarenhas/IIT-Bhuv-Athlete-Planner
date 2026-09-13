@@ -67,8 +67,8 @@ const DEFAULT_PROFILE: UserProfile = {
   athlete_tier: 'Semi-Pro',
   active_goal: 'Stay Fit',
   goal_end_date: undefined,
-  daily_streak: 12,
-  current_streak: 12,
+  daily_streak: 0,
+  current_streak: 0,
   last_active_date: new Date().toISOString().split('T')[0],
 };
 
@@ -270,8 +270,8 @@ export const api = {
         name: data.name || DEFAULT_PROFILE.name,
         sport_type: data.sport_type || data.user?.sport_type || DEFAULT_PROFILE.sport_type,
         position: data.position || data.user?.position || DEFAULT_PROFILE.position,
-        daily_streak: data.daily_streak ?? 12,
-        current_streak: data.current_streak ?? 12,
+        daily_streak: data.daily_streak ?? 0,
+        current_streak: data.current_streak ?? 0,
         active_goal: data.active_goal || 'Stay Fit',
         goal_end_date: data.goal_end_date,
         athlete_tier: data.athlete_tier || data.user?.athlete_tier || DEFAULT_PROFILE.athlete_tier,

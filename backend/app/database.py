@@ -40,8 +40,8 @@ def init_db():
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT,
-        current_streak INTEGER DEFAULT 12,
-        daily_streak INTEGER DEFAULT 12,
+        current_streak INTEGER DEFAULT 0,
+        daily_streak INTEGER DEFAULT 0,
         sport_type TEXT DEFAULT 'Soccer',
         position TEXT DEFAULT '',
         password_hash TEXT,
@@ -128,12 +128,12 @@ def init_db():
     )
     ''')
 
-    # Seed default user (id=1, name='Champ', daily_streak=12) if empty
+    # Seed default user (id=1, name='Champ', daily_streak=0) if empty
     cursor.execute("SELECT count(*) FROM users")
     if cursor.fetchone()['count'] == 0:
         cursor.execute('''
             INSERT INTO users (id, name, email, current_streak, daily_streak, sport_type, last_active_date, last_streak_date)
-            VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
+            VALUES (1, 'Champ', 'athlete@pace.ai', 0, 0, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
             ON CONFLICT (id) DO NOTHING
         ''')
     else:
@@ -143,7 +143,7 @@ def init_db():
         if not u:
             cursor.execute('''
                 INSERT INTO users (id, name, email, current_streak, daily_streak, sport_type, last_active_date, last_streak_date)
-                VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
+                VALUES (1, 'Champ', 'athlete@pace.ai', 0, 0, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
                 ON CONFLICT (id) DO NOTHING
             ''')
         else:

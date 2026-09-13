@@ -40,7 +40,7 @@ function computeGreeting(name: string = 'Champ'): string {
 
 export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [athlete, setAthlete] = useState<UserProfile | null>(null);
-  const [streak, setStreak] = useState<number>(12);
+  const [streak, setStreak] = useState<number>(0);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
@@ -58,7 +58,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const profile = await api.getProfile(userId);
       setAthlete(profile);
-      setStreak(profile.current_streak ?? 12);
+      setStreak(profile.current_streak ?? 0);
     } catch {
       // Fallback already handled in api.ts
     }
@@ -153,13 +153,17 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return q;
       });
 
-      // Dynamically update streak
+      const allCompleted = updated.length > 0 && updated.every(q => q.is_completed);
+      const previouslyAllCompleted = prevQuests.length > 0 && prevQuests.every(q => q.is_completed);
+
+      // Optimistically update streak based on completing ALL tasks
       setStreak((prevStreak) => {
-        if (targetNewState) {
+        if (allCompleted && !previouslyAllCompleted) {
           return prevStreak + 1;
-        } else {
-          return Math.max(1, prevStreak - 1);
+        } else if (!allCompleted && previouslyAllCompleted) {
+          return Math.max(0, prevStreak - 1);
         }
+        return prevStreak;
       });
 
       // Asynchronously notify backend
