@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from groq import Groq
-from algorithm import evaluate_daily_constraints, get_db_connection
+from .algorithm import evaluate_daily_constraints, get_db_connection
 
 # Safely initialize Groq so missing or invalid GROQ_API_KEY never crashes import or runtime
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")

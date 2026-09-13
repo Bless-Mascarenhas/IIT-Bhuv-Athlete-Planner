@@ -19,7 +19,7 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 
-from database import get_db_connection
+from .database import get_db_connection
 
 logger = logging.getLogger("intent_router")
 

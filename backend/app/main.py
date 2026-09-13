@@ -6,10 +6,10 @@ from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from agent import get_onboarding_response, generate_daily_quests, generate_weekly_plan
-from algorithm import get_db_connection
-from database import init_db
-from intent_router import process_chat
+from .agent import get_onboarding_response, generate_daily_quests, generate_weekly_plan
+from .algorithm import get_db_connection
+from .database import init_db
+from .intent_router import process_chat
 
 # Initialize tables and dynamic migrations on startup
 init_db()
@@ -288,7 +288,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
         user_row = cursor.fetchone()
         active_goal = user_row["active_goal"] if user_row and user_row["active_goal"] else "Stay Fit"
         
-        from agent import generate_weekly_plan
+        from .agent import generate_weekly_plan
         plan_response = generate_weekly_plan(athlete_id, target_date_str, None, None, active_goal)
         
         # Clear existing uncompleted entries from today forward

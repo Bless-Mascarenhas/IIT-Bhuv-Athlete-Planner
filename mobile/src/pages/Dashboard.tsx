@@ -137,7 +137,7 @@ export default function Dashboard() {
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Sleep</span>
             </div>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#2d3436', marginTop: '6px' }}>
-              {metrics?.sleepHours ?? 7.8} <span style={{ fontSize: '0.85rem' }}>hrs</span>
+              {metrics?.sleepHours || 0} <span style={{ fontSize: '0.85rem' }}>hrs</span>
             </div>
             <div style={{ fontSize: '0.7rem', color: '#7f8c8d', marginTop: '2px' }}>
               Restorative Sleep
@@ -151,10 +151,10 @@ export default function Dashboard() {
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Resting HR</span>
             </div>
             <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#2d3436', marginTop: '6px' }}>
-              {metrics?.restingHeartRate ?? 54} <span style={{ fontSize: '0.85rem' }}>bpm</span>
+              {metrics?.restingHeartRate || 0} <span style={{ fontSize: '0.85rem' }}>bpm</span>
             </div>
             <div style={{ fontSize: '0.7rem', color: '#7f8c8d', marginTop: '2px' }}>
-              Current: {metrics?.currentHeartRate ?? 64} bpm
+              Current: {metrics?.currentHeartRate || 0} bpm
             </div>
           </div>
         </div>
