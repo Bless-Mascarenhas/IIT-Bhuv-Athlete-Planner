@@ -40,7 +40,7 @@ export default function Planner() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Calendar size={20} color="#fc5200" />
-            7-Day Forecast
+            {availableDates.length >= 7 ? '7-Day Forecast' : 'Upcoming Plan'}
           </h3>
         </div>
         

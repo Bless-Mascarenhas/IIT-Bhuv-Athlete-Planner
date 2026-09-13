@@ -12,6 +12,7 @@ export interface UserProfile {
   active_goal?: string;
   goal_end_date?: string;
   position?: string;
+  athlete_tier?: string;
   daily_streak: number;
   current_streak: number;
   last_active_date?: string;
@@ -63,6 +64,7 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Alex Rivera',
   sport_type: 'Football',
   position: 'Forward',
+  athlete_tier: 'Semi-Pro',
   active_goal: 'Stay Fit',
   goal_end_date: undefined,
   daily_streak: 12,
@@ -187,7 +189,7 @@ export const api = {
     }
   },
 
-  async updateProfile(userId: number, profileData: { name: string; sport_type: string; position: string; active_goal: string }): Promise<boolean> {
+  async updateProfile(userId: number, profileData: { name: string; sport_type: string; position: string; active_goal: string; athlete_tier?: string }): Promise<boolean> {
     try {
       const res = await fetch(`https://pace-backend-2oyk.onrender.com/profile/${userId}`, {
         method: 'PUT',
@@ -272,6 +274,7 @@ export const api = {
         current_streak: data.current_streak ?? 12,
         active_goal: data.active_goal || 'Stay Fit',
         goal_end_date: data.goal_end_date,
+        athlete_tier: data.athlete_tier || data.user?.athlete_tier || DEFAULT_PROFILE.athlete_tier,
         last_active_date: data.user?.last_active_date,
         last_streak_date: data.user?.last_streak_date,
       };
@@ -430,35 +433,28 @@ export const api = {
       const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/events?athlete_id=${athleteId}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.events)) {
-          return data.events;
+        if (Array.isArray(data)) {
+          return data;
         }
       }
     } catch {
-      // Offline fallback
+      // Offline fallback: empty instead of dummy data
     }
+    return [];
+  },
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 3);
-
-    return [
-      {
-        id: 1,
-        athlete_id: athleteId,
-        event_date: tomorrow.toISOString().split('T')[0],
-        event_type: 'match',
-        duration_minutes: 90,
-      },
-      {
-        id: 2,
-        athlete_id: athleteId,
-        event_date: dayAfter.toISOString().split('T')[0],
-        event_type: 'training',
-        duration_minutes: 60,
-      },
-    ];
+  /**
+   * Delete a calendar event.
+   */
+  async deleteEvent(eventId: number): Promise<boolean> {
+    try {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/events/${eventId}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   },
 
   /**

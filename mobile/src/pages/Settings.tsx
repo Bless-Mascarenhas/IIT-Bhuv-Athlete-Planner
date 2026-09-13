@@ -97,7 +97,7 @@ export default function Settings() {
             <Trophy size={18} color="#0984e3" />
             <div>
               <div style={{ fontSize: '0.68rem', color: '#7f8c8d', fontWeight: 600 }}>ATHLETE TIER</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0984e3' }}>Semi-Pro</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0984e3' }}>{athlete?.athlete_tier || 'Semi-Pro'}</div>
             </div>
           </div>
         </div>

@@ -1,12 +1,12 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { api, type CalendarEvent } from '../services/api';
-import { Trophy, Dumbbell, Plus, X, Clock, Check, Sparkles, CalendarDays } from 'lucide-react';
+import { Trophy, Dumbbell, Plus, X, Clock, Check, Sparkles, CalendarDays, Trash2 } from 'lucide-react';
 
 export default function Calendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formType, setFormType] = useState('match');
+  const [formType, setFormType] = useState('');
   const [formDate, setFormDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -63,6 +63,17 @@ export default function Calendar() {
       setTimeout(() => setStatusMsg(null), 3500);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (confirm('Are you sure you want to delete this event?')) {
+      const success = await api.deleteEvent(eventId);
+      if (success) {
+        setEvents((prev) => prev.filter(e => e.id !== eventId));
+        setStatusMsg('Event deleted successfully.');
+        setTimeout(() => setStatusMsg(null), 3500);
+      }
     }
   };
 
@@ -127,11 +138,14 @@ export default function Calendar() {
           <form onSubmit={handleAddEvent} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72', display: 'block', marginBottom: '4px' }}>
-                Event Type
+                Event Name
               </label>
-              <select
+              <input
+                type="text"
+                placeholder="e.g. Finals vs Wildcats"
                 value={formType}
                 onChange={(e) => setFormType(e.target.value)}
+                required
                 style={{
                   width: '100%',
                   padding: '0.65rem 0.85rem',
@@ -142,11 +156,7 @@ export default function Calendar() {
                   color: 'var(--text)',
                   fontSize: '0.85rem',
                 }}
-              >
-                <option value="match">Match / Fixture</option>
-                <option value="training">Team Training Session</option>
-                <option value="recovery">Active Recovery Session</option>
-              </select>
+              />
             </div>
 
             <div>
@@ -224,8 +234,9 @@ export default function Calendar() {
           </div>
         ) : (
           sortedEvents.map((evt, idx) => {
-            const isMatch = evt.event_type.toLowerCase() === 'match';
-            const isTraining = evt.event_type.toLowerCase() === 'training';
+            const lowerType = evt.event_type.toLowerCase();
+            const isMatch = lowerType.includes('match') || lowerType.includes('final') || lowerType.includes('game');
+            const isTraining = lowerType.includes('train') || lowerType.includes('practice');
 
             return (
               <div
@@ -271,7 +282,7 @@ export default function Calendar() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2d3436' }}>
-                      {isMatch ? 'Competitive Match' : isTraining ? 'Team Training' : 'Active Recovery'}
+                      {evt.event_type}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', color: '#7f8c8d', fontSize: '0.75rem' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -287,19 +298,39 @@ export default function Calendar() {
                   </div>
                 </div>
 
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: isMatch ? '#fc5200' : isTraining ? '#0984e3' : '#00b894',
-                    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-                    padding: '0.25rem 0.6rem',
-                    borderRadius: '999px',
-                  }}
-                >
-                  {evt.event_type}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      color: isMatch ? '#fc5200' : isTraining ? '#0984e3' : '#00b894',
+                      backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    {isMatch ? 'Match' : isTraining ? 'Training' : 'Event'}
+                  </span>
+                  
+                  {evt.id && (
+                    <button
+                      onClick={() => handleDeleteEvent(evt.id!)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ff7675',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })

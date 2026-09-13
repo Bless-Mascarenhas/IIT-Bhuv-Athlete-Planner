@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame, Save, X, Loader2 } from 'lucide-react';
 import { useAthlete } from '../context/AthleteContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,16 @@ export default function Header() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [streakAnimating, setStreakAnimating] = useState(false);
+
+  // Trigger streak animation when streak increases
+  useEffect(() => {
+    if (streak > 0) {
+      setStreakAnimating(true);
+      const timer = setTimeout(() => setStreakAnimating(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [streak]);
 
   const handleUpgrade = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +111,8 @@ export default function Header() {
             borderRadius: '999px',
             backgroundColor: 'var(--bg)',
             boxShadow: 'inset 2px 2px 4px rgba(163,177,198,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)',
+            transform: streakAnimating ? 'scale(1.15)' : 'scale(1)',
+            transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}
           title={`Current streak: ${streak} consecutive days`}
         >
@@ -113,7 +125,7 @@ export default function Header() {
           >
             {streak}
           </span>
-          <Flame size={19} color="#fc5200" fill="#fc5200" />
+          <Flame size={19} color="#fc5200" fill="#fc5200" style={{ transform: streakAnimating ? 'rotate(15deg) scale(1.3)' : 'none', transition: 'all 0.3s' }} />
         </div>
       </div>
 

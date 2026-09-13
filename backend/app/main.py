@@ -42,6 +42,7 @@ class OnboardingRequest(BaseModel):
     sport_type: str
     position: str
     active_goal: str
+    athlete_tier: Optional[str] = "Semi-Pro"
 
 @app.post("/auth/register")
 def register_user(req: RegisterRequest):
@@ -108,9 +109,9 @@ def update_profile(user_id: int, req: OnboardingRequest):
     end_date = (date.today() + timedelta(days=6)).strftime("%Y-%m-%d")
     cursor.execute('''
         UPDATE users 
-        SET name = %s, sport_type = %s, position = %s, active_goal = %s, goal_end_date = %s
+        SET name = %s, sport_type = %s, position = %s, active_goal = %s, goal_end_date = %s, athlete_tier = %s
         WHERE id = %s
-    ''', (req.name, req.sport_type, req.position, req.active_goal, end_date, user_id))
+    ''', (req.name, req.sport_type, req.position, req.active_goal, end_date, req.athlete_tier, user_id))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Profile updated successfully"}
@@ -542,7 +543,7 @@ def get_user_profile(user_id: int = 1):
     """Returns athlete profile and current streak information."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = %s", (user_id,))
+    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, position, athlete_tier, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     conn.close()
 
@@ -558,7 +559,8 @@ def get_user_profile(user_id: int = 1):
         "daily_streak": user_dict["daily_streak"],
         "current_streak": user_dict["current_streak"],
         "active_goal": user_dict.get("active_goal", "Stay Fit"),
-        "goal_end_date": user_dict.get("goal_end_date")
+        "goal_end_date": user_dict.get("goal_end_date"),
+        "athlete_tier": user_dict.get("athlete_tier", "Semi-Pro")
     }
 
 

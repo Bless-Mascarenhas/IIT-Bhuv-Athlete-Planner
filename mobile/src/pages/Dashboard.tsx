@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
 
 export default function Dashboard() {
-  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth, refreshQuests } = useAthlete();
+  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
   const [goalInput, setGoalInput] = useState('');
   const [isSettingGoal, setIsSettingGoal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -192,12 +192,15 @@ export default function Dashboard() {
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3436' }}>Today's Goal / Schedule</h3>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).length === 0 && (
+          {loading && quests.length === 0 ? (
+            <div className="neu-box" style={{ padding: '1rem', textAlign: 'center', color: '#0984e3', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+               <RefreshCw size={16} className="spin" /> Generating your dynamic plan...
+            </div>
+          ) : quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).length === 0 ? (
             <div className="neu-box" style={{ padding: '1rem', textAlign: 'center', color: '#7f8c8d' }}>
               No quests scheduled for today.
             </div>
-          )}
-          {quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).slice(0, 3).map((quest) => (
+          ) : quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).slice(0, 3).map((quest) => (
             <div key={quest.id} className="neu-box" style={{ padding: '1rem', display: 'flex', gap: '12px', alignItems: 'center', opacity: quest.is_completed ? 0.6 : 1 }}>
               <div style={{ flex: 1 }}>
                 <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: quest.is_completed ? '#7f8c8d' : '#2d3436', textDecoration: quest.is_completed ? 'line-through' : 'none', marginBottom: '4px' }}>
@@ -212,11 +215,24 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
-              {quest.is_completed ? (
-                <CheckCircle2 size={24} color="#00b894" />
-              ) : (
-                <Circle size={24} color="#b2bec3" />
-              )}
+              <button 
+                onClick={() => completeQuest(quest.id)}
+                className="neu-btn"
+                style={{
+                  padding: '8px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  color: quest.is_completed ? '#00b894' : '#b2bec3',
+                }}
+              >
+                {quest.is_completed ? (
+                  <CheckCircle2 size={24} />
+                ) : (
+                  <Circle size={24} />
+                )}
+              </button>
             </div>
           ))}
         </div>

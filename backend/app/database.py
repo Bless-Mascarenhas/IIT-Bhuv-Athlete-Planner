@@ -157,7 +157,8 @@ def init_db():
     user_migrations = {
         'position': 'TEXT DEFAULT \'\'',
         'password_hash': 'TEXT',
-        'is_guest': 'BOOLEAN DEFAULT false'
+        'is_guest': 'BOOLEAN DEFAULT false',
+        'athlete_tier': 'TEXT DEFAULT \'Semi-Pro\''
     }
 
     for col_name, col_def in user_migrations.items():

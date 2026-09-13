@@ -11,6 +11,7 @@ export default function Onboarding() {
     name: '',
     sport_type: 'General Fitness',
     position: 'Athlete',
+    athlete_tier: 'Semi-Pro',
     active_goal: 'Stay Fit'
   });
 
@@ -26,10 +27,10 @@ export default function Onboarding() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', padding: '2rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#2d3436', margin: 0 }}>
-          {step === 1 ? 'Welcome to Pace.' : step === 2 ? 'Your Sport.' : 'Your Goal.'}
+          {step === 1 ? 'Welcome to Pace.' : step === 2 ? 'Your Sport.' : step === 3 ? 'Your Tier.' : 'Your Goal.'}
         </h1>
         <p style={{ color: '#7f8c8d', fontSize: '1rem', fontWeight: 600, marginTop: '0.5rem' }}>
-          {step === 1 ? 'Let\'s set up your profile.' : step === 2 ? 'Customize your AI planner.' : 'What are we working towards?'}
+          {step === 1 ? 'Let\'s set up your profile.' : step === 2 ? 'Customize your AI planner.' : step === 3 ? 'Set your experience level.' : 'What are we working towards?'}
         </p>
       </div>
 
@@ -98,6 +99,32 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 700, color: '#636e72', marginLeft: '1rem' }}>Athlete Tier</label>
+              <select 
+                value={formData.athlete_tier}
+                onChange={e => setFormData({ ...formData, athlete_tier: e.target.value })}
+                className="neu-inset"
+                style={{ padding: '1rem', borderRadius: '12px', border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '1rem', color: '#2d3436' }}
+              >
+                <option value="Amateur">Amateur</option>
+                <option value="Semi-Pro">Semi-Pro</option>
+                <option value="Professional">Professional</option>
+                <option value="Elite">Elite</option>
+              </select>
+            </div>
+            <button 
+              onClick={handleNext}
+              className="neu-btn"
+              style={{ padding: '1rem', borderRadius: '12px', fontWeight: 800, color: '#fc5200', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+            >
+              Continue <ArrowRight size={20} />
+            </button>
+          </div>
+        )}
+
+        {step === 4 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '0.9rem', fontWeight: 700, color: '#636e72', marginLeft: '1rem' }}>Current 7-Day Goal</label>
