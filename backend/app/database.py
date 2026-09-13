@@ -27,7 +27,7 @@ def init_db():
 
     # Seed default athlete if empty
     cursor.execute("SELECT count(*) FROM athletes")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()['count'] == 0:
         cursor.execute('''
             INSERT INTO athletes (id, name, sport_type, baseline_fatigue, baseline_sleep)
             VALUES (1, 'Champ', 'team_sport', 5.0, 7.0)
@@ -130,7 +130,7 @@ def init_db():
 
     # Seed default user (id=1, name='Champ', daily_streak=12) if empty
     cursor.execute("SELECT count(*) FROM users")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()['count'] == 0:
         cursor.execute('''
             INSERT INTO users (id, name, email, current_streak, daily_streak, sport_type, last_active_date, last_streak_date)
             VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
