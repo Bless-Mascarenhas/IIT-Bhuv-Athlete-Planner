@@ -1,7 +1,8 @@
 import os
 import json
+from datetime import datetime, timedelta
 from groq import Groq
-from algorithm import evaluate_daily_constraints
+from algorithm import evaluate_daily_constraints, get_db_connection
 
 # Using environment variable for security
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -13,7 +14,6 @@ MODEL = "openai/gpt-oss-120b"
 def get_onboarding_response(conversation_history: list) -> str:
     """
     Grill Agent: Interviews the user to establish their baseline.
-    conversation_history is a list of dicts: [{'role': 'user'/'assistant', 'content': '...'}]
     """
     system_prompt = {
         "role": "system",
@@ -39,41 +39,62 @@ def get_onboarding_response(conversation_history: list) -> str:
     return response.choices[0].message.content
 
 
-def generate_daily_plan(athlete_id: int, current_date_str: str, fatigue: int = None, sleep: int = None) -> dict:
+def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = None, sleep: int = None) -> dict:
     """
-    Planner Agent: Uses the mathematical constraints from algorithm.py to generate a specific training session.
+    Planner Agent: Uses mathematical constraints and a 7-day horizon to generate a rolling weekly schedule.
     """
-    # 1. Get the mathematical constraints (The Referee)
-    constraints = evaluate_daily_constraints(athlete_id, current_date_str, fatigue, sleep)
+    # 1. Get the mathematical constraints for TODAY (Day 1)
+    constraints = evaluate_daily_constraints(athlete_id, start_date_str, fatigue, sleep)
     
-    # 2. Build the prompt for Groq
+    # 2. Grab upcoming events for the next 7 days to pass to the LLM
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    end_date = start_date + timedelta(days=7)
+    cursor.execute('''SELECT event_date, event_type, duration_minutes FROM events 
+                      WHERE athlete_id=? AND event_date >= ? AND event_date <= ?''',
+                   (athlete_id, start_date_str, end_date.strftime("%Y-%m-%d")))
+    events = cursor.fetchall()
+    conn.close()
+    
+    events_str = ", ".join([f"{e['event_date']}: {e['event_type']} ({e['duration_minutes']}m)" for e in events])
+    if not events_str:
+        events_str = "No matches scheduled in the next 7 days."
+    
+    # 3. Build the prompt for Groq
     system_prompt = {
         "role": "system",
         "content": (
             "You are an Autonomous Athlete Performance Planner for team sports. "
-            "Your job is to generate a specific, actionable daily training plan that STRICTLY follows "
-            "the provided mathematical constraints. Do NOT prescribe medical treatments or make injury claims.\n"
-            "Return ONLY a valid JSON object with the following keys:\n"
-            " - 'intensity': string (MUST be one of the exact Allowed Intensities provided)\n"
-            " - 'session_description': string (A 2-3 sentence description of the workout, e.g., 'Light mobility spin and foam rolling' for Recovery)\n"
+            "Generate a rolling 7-day training plan starting from the provided date. "
+            "Return ONLY a valid JSON object with a single key 'weekly_plan' containing an array of 7 daily objects.\n"
+            "Each object MUST have these exact keys:\n"
+            " - 'date': string (YYYY-MM-DD)\n"
+            " - 'intensity': string (MUST be 'Rest', 'Recovery', 'Moderate', or 'High')\n"
+            " - 'session_description': string (A 2-3 sentence description of the workout)\n"
             " - 'target_rpe': int (1-10)\n"
             " - 'duration_mins': int\n"
-            " - 'agent_reasoning': string (Explain why you chose this, heavily referencing the constraints and sport science)\n"
+            " - 'agent_reasoning': string (Explain why this was chosen for this specific day)\n"
         )
     }
     
     user_prompt = {
         "role": "user",
         "content": (
-            f"Date: {current_date_str}\n"
-            f"Athlete Current State:\n"
+            f"Start Date (Day 1): {start_date_str}\n"
+            f"Athlete Current State (Crucial for Day 1 mapping):\n"
             f"- Fatigue: {fatigue}/10 (10=Worst)\n"
             f"- Sleep Quality: {sleep}/10 (10=Best)\n"
-            f"Constraints from Load Management Engine:\n"
+            f"Current Constraints (MUST BE STRICTLY OBEYED FOR DAY 1):\n"
             f"- Allowed Intensities: {constraints['allowed_intensity']}\n"
             f"- Maximum Load Capacity: {constraints['max_load_percentage']}%\n"
-            f"- Triggered Rules / System Reasons: {', '.join(constraints['reasons']) if constraints['reasons'] else 'None. Nominal condition.'}\n\n"
-            f"Given the athlete's current state and strictly obeying the constraints, generate the optimal training plan in strict JSON. If the athlete is extremely fresh (low fatigue, great sleep) and constraints allow it, you MUST prescribe a 'High' or 'Moderate' intensity session to build fitness. Do not prescribe Recovery for a fully rested athlete unless forced by constraints."
+            f"- Triggered Rules: {', '.join(constraints['reasons']) if constraints['reasons'] else 'None. Nominal.'}\n\n"
+            f"Upcoming 7-Day Events (Calendar): {events_str}\n\n"
+            f"Generate the 7-day schedule in strict JSON. \n"
+            f"CRITICAL RULES: \n"
+            f"1. Day 1 MUST strictly obey the Current Constraints above.\n"
+            f"2. If the athlete is fresh today (low fatigue, great sleep), push them with High/Moderate on Day 1.\n"
+            f"3. Smoothly periodize the remaining 6 days around any upcoming matches (taper before, recover after)."
         )
     }
     
@@ -86,7 +107,7 @@ def generate_daily_plan(athlete_id: int, current_date_str: str, fatigue: int = N
     
     plan_data = json.loads(response.choices[0].message.content)
     
-    # Merge the mathematical flags so the frontend API knows if this was a forced revision
+    # Merge the mathematical flags so the frontend API knows if Day 1 was a forced revision
     plan_data['was_revised'] = constraints['force_revision']
     plan_data['constraint_reasons'] = constraints['reasons']
     

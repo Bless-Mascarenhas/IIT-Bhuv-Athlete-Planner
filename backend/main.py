@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date
-from agent import get_onboarding_response, generate_daily_plan
+from agent import get_onboarding_response, generate_weekly_plan
 from algorithm import get_db_connection
 
 app = FastAPI(title="Athlete Performance Planner API")
@@ -55,28 +55,30 @@ def onboard_chat(request: ChatRequest):
 
 @app.post("/api/plan/generate")
 def generate_plan(athlete_id: int, target_date: date, current_fatigue: Optional[int] = None, current_sleep: Optional[int] = None):
-    """Generates or recalculates the daily plan using constraints + Groq."""
+    """Generates a 7-day rolling plan using constraints + Groq."""
     try:
-        plan = generate_daily_plan(athlete_id, target_date.strftime("%Y-%m-%d"), current_fatigue, current_sleep)
+        plan_response = generate_weekly_plan(athlete_id, target_date.strftime("%Y-%m-%d"), current_fatigue, current_sleep)
         
-        # Save generated plan to database
+        # Save generated 7-day plan to database
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO training_plans (athlete_id, plan_date, intensity_category, target_load, status, revision_reason)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            athlete_id, 
-            target_date.strftime("%Y-%m-%d"), 
-            plan.get('intensity', 'Rest'),
-            plan.get('target_rpe', 0) * plan.get('duration_mins', 0),
-            'planned',
-            " | ".join(plan.get('constraint_reasons', []))
-        ))
+        
+        for day_plan in plan_response.get('weekly_plan', []):
+            cursor.execute('''
+                INSERT INTO training_plans (athlete_id, plan_date, intensity_category, target_load, status, revision_reason)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                athlete_id, 
+                day_plan.get('date'), 
+                day_plan.get('intensity', 'Rest'),
+                day_plan.get('target_rpe', 0) * day_plan.get('duration_mins', 0),
+                'planned',
+                day_plan.get('agent_reasoning', '')
+            ))
         conn.commit()
         conn.close()
         
-        return {"status": "success", "plan": plan}
+        return {"status": "success", "plan": plan_response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

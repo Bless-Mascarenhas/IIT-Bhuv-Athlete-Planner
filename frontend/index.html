@@ -205,16 +205,30 @@
                 
                 if(data.status === 'success') {
                     const plan = data.plan;
-                    content.innerHTML = `
-                        <div style="margin-bottom:1.5rem;">
-                            <span class="tag">Intensity: ${plan.intensity}</span>
-                            <span class="tag">Target RPE: ${plan.target_rpe}</span>
-                            <span class="tag">${plan.duration_mins} mins</span>
+                    let html = '';
+                    if(plan.was_revised) {
+                        html += `<div style="margin-bottom:1rem; padding:1rem; border-radius:10px; background:#ff7675; color:white;">
+                                    <strong>⚠️ Day 1 Constraints Triggered:</strong><br> 
+                                    ${plan.constraint_reasons.join('<br>')}
+                                 </div>`;
+                    }
+                    
+                    (plan.weekly_plan || []).forEach(day => {
+                        html += `
+                        <div style="background:#e0e5ec; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; box-shadow: inset 5px 5px 10px rgb(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255, 0.5);">
+                            <h3 style="margin-top:0; color:#2d3436;">${day.date}</h3>
+                            <div style="margin-bottom:1rem;">
+                                <span class="tag">Intensity: ${day.intensity}</span>
+                                <span class="tag">Target RPE: ${day.target_rpe}</span>
+                                <span class="tag">${day.duration_mins} mins</span>
+                            </div>
+                            <p><strong>Workout Description:</strong><br> ${day.session_description}</p>
+                            <p style="font-size: 0.9em; color:#636e72;"><strong>AI Reasoning:</strong><br> ${day.agent_reasoning}</p>
                         </div>
-                        <p><strong>Workout Description:</strong><br> ${plan.session_description}</p>
-                        <p><strong>AI Reasoning:</strong><br> ${plan.agent_reasoning}</p>
-                        ${plan.was_revised ? `<div style="margin-top:1rem; padding:1rem; border-radius:10px; background:#ff7675; color:white;"><strong>⚠️ Constraints Triggered:</strong><br> ${plan.constraint_reasons.join('<br>')}</div>` : ''}
-                    `;
+                        `;
+                    });
+                    
+                    content.innerHTML = html;
                 } else {
                     content.innerHTML = `<span style="color:red">Error generating plan.</span>`;
                 }
