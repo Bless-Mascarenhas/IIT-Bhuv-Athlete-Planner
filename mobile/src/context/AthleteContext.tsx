@@ -48,12 +48,6 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
 
   
-  const completeGoal = useCallback(async () => {
-    setLoading(true);
-    await api.completeGoal(1);
-    await refreshProfile();
-    setLoading(false);
-  }, [refreshProfile]);
 
   const healthProvider = useMemo(() => getHealthProvider(), []);
 
@@ -89,6 +83,13 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await refreshQuests();
     setLoading(false);
   }, [refreshProfile, refreshQuests]);
+
+  const completeGoal = useCallback(async () => {
+    setLoading(true);
+    await api.completeGoal(1);
+    await refreshProfile();
+    setLoading(false);
+  }, [refreshProfile]);
 
   const syncHealth = useCallback(async () => {
     try {
