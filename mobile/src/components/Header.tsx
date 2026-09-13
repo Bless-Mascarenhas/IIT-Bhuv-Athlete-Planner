@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
   const { streak, greeting } = useAthlete();
-  const { userId, logout } = useAuth();
+  const { isGuest, logout } = useAuth();
 
   return (
     <header
@@ -38,7 +38,7 @@ export default function Header() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {userId === 1 && (
+        {isGuest && (
           <button
             onClick={() => logout()}
             className="neu-btn"

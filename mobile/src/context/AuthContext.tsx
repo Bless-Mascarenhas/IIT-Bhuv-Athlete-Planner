@@ -6,7 +6,8 @@ interface AuthContextType {
   isLoggedIn: boolean;
   hasOnboarded: boolean;
   userId: number | null;
-  login: (userId: number) => Promise<void>;
+  isGuest: boolean;
+  login: (userId: number, isGuest?: boolean) => Promise<void>;
   startLocalGuest: (formData: any) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   logout: () => Promise<void>;
@@ -19,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasOnboarded, setHasOnboarded] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { value: storedUserId } = await Preferences.get({ key: 'userId' });
         const { value: storedOnboarded } = await Preferences.get({ key: 'hasOnboarded' });
+        const { value: storedIsGuest } = await Preferences.get({ key: 'isGuest' });
 
         if (storedUserId) {
           setUserId(parseInt(storedUserId, 10));
@@ -37,6 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (storedOnboarded === 'true') {
           setHasOnboarded(true);
+        }
+        if (storedIsGuest === 'true') {
+          setIsGuest(true);
         }
       } catch (e) {
         console.error('Error loading auth state:', e);
@@ -48,8 +54,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadAuth();
   }, []);
 
-  const login = async (newUserId: number) => {
+  const login = async (newUserId: number, guestFlag: boolean = false) => {
     await Preferences.set({ key: 'userId', value: newUserId.toString() });
+    
+    if (guestFlag) {
+      await Preferences.set({ key: 'isGuest', value: 'true' });
+      setIsGuest(true);
+    } else {
+      await Preferences.remove({ key: 'isGuest' });
+      setIsGuest(false);
+    }
+    
     setUserId(newUserId);
     setIsLoggedIn(true);
   };
@@ -59,7 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserId(1); 
     setIsLoggedIn(true);
     setHasOnboarded(true);
+    setIsGuest(true);
     await Preferences.set({ key: 'hasOnboarded', value: 'true' });
+    await Preferences.set({ key: 'isGuest', value: 'true' });
     
     // Background cloud sync without waiting
     (async () => {
@@ -67,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cloudUserId = await api.loginGuest();
         if (cloudUserId) {
           await api.updateProfile(cloudUserId, formData);
-          await login(cloudUserId);
+          await login(cloudUserId, true);
         }
       } catch (e) {
         console.error('Failed to sync guest account to cloud in background', e);
@@ -83,9 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await Preferences.remove({ key: 'userId' });
     await Preferences.remove({ key: 'hasOnboarded' });
+    await Preferences.remove({ key: 'isGuest' });
     setUserId(null);
     setIsLoggedIn(false);
     setHasOnboarded(false);
+    setIsGuest(false);
   };
 
   return (
@@ -94,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoggedIn,
         hasOnboarded,
         userId,
+        isGuest,
         login,
         startLocalGuest,
         completeOnboarding,
