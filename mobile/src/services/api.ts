@@ -9,6 +9,8 @@ export interface UserProfile {
   name: string;
   email?: string;
   sport_type?: string;
+  active_goal?: string;
+  goal_end_date?: string;
   daily_streak: number;
   current_streak: number;
   last_active_date?: string;
@@ -26,6 +28,9 @@ export interface Quest {
   target_rpe: number;
   duration_minutes: number;
   target_load?: number;
+  target_steps?: number;
+  target_calories?: number;
+  revision_reason?: string;
   is_completed: boolean;
   completed_at?: string | null;
   agent_reasoning?: string;
@@ -56,6 +61,8 @@ const DEFAULT_PROFILE: UserProfile = {
   id: 1,
   name: 'Alex Rivera',
   sport_type: 'Football (Forward)',
+  active_goal: 'Stay Fit',
+  goal_end_date: undefined,
   daily_streak: 12,
   current_streak: 12,
   last_active_date: new Date().toISOString().split('T')[0],
@@ -110,6 +117,32 @@ export const api = {
   /**
    * Fetch current athlete profile and streak.
    */
+  
+  
+  async completeGoal(userId: number = 1): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/user/goal/complete?user_id=${userId}`, {
+        method: 'POST',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async updateGoal(goal: string, userId: number = 1): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/user/goal?user_id=${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   async getProfile(userId: number = 1): Promise<UserProfile> {
     try {
       const res = await fetch(`/api/user/profile?user_id=${userId}`);
@@ -134,6 +167,8 @@ export const api = {
         sport_type: data.user?.sport_type || DEFAULT_PROFILE.sport_type,
         daily_streak: data.daily_streak ?? 12,
         current_streak: data.current_streak ?? 12,
+        active_goal: data.active_goal || 'Stay Fit',
+        goal_end_date: data.goal_end_date,
         last_active_date: data.user?.last_active_date,
         last_streak_date: data.user?.last_streak_date,
       };
@@ -145,7 +180,7 @@ export const api = {
   /**
    * Fetch today's 1-day rolling Quests.
    */
-  async getTodayPlan(athleteId: number = 1, targetDate?: string): Promise<Quest[]> {
+  async get7DayPlan(athleteId: number = 1, targetDate?: string): Promise<Quest[]> {
     const dateStr = targetDate || new Date().toISOString().split('T')[0];
     try {
       const res = await fetch(`/api/plan/today?athlete_id=${athleteId}&plan_date=${dateStr}`);

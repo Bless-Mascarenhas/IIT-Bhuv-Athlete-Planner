@@ -300,7 +300,7 @@ def _generate_heuristic_quests(athlete_id: int, target_date_str: str, constraint
     }
 
 
-def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = None, sleep: int = None) -> dict:
+def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = None, sleep: int = None, active_goal: str = 'Stay Fit') -> dict:
     """
     Legacy 7-Day horizon plan generator preserved for backward compatibility.
     """
@@ -356,6 +356,8 @@ def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = No
                 " - 'session_description': string (A 2-3 sentence description of the workout)\n"
                 " - 'target_rpe': int (1-10)\n"
                 " - 'duration_mins': int\n"
+                " - 'target_steps': int\n"
+                " - 'target_calories': int\n"
                 " - 'agent_reasoning': string (Explain why this was chosen for this specific day)\n"
             )
         }
@@ -367,6 +369,7 @@ def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = No
                 f"Athlete Current State:\n"
                 f"- Fatigue: {fatigue}/10\n"
                 f"- Sleep Quality: {sleep}/10\n"
+                f"Current Goal: {active_goal}\n"
                 f"Current Constraints:\n"
                 f"- Allowed Intensities: {constraints['allowed_intensity']}\n"
                 f"- Maximum Load Capacity: {constraints['max_load_percentage']}%\n"

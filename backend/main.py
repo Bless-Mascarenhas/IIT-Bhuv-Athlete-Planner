@@ -60,6 +60,7 @@ class Event(BaseModel):
 
 
 class PlanRequest(BaseModel):
+    active_goal: Optional[str] = None
     athlete_id: Optional[int] = 1
     target_date: Optional[Union[date, str]] = None
     current_fatigue: Optional[int] = None
@@ -261,7 +262,7 @@ def generate_plan(
 
 @app.get("/api/plan/today")
 def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
-    """Returns today's 1-day rolling Quests."""
+    """Returns 7-day rolling Quests."""
     target_date_str = plan_date if plan_date else date.today().strftime("%Y-%m-%d")
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -269,15 +270,57 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
     cursor.execute('''
         SELECT id, athlete_id, plan_date, intensity_category, target_load, status,
                revision_reason, quest_title, session_description, task_type,
-               target_rpe, duration_minutes, is_completed, completed_at
+               target_rpe, duration_minutes, target_steps, target_calories, is_completed, completed_at
         FROM training_plans
-        WHERE athlete_id = ? AND plan_date = ?
-        ORDER BY id ASC
+        WHERE athlete_id = ? AND plan_date >= ?
+        ORDER BY plan_date ASC, id ASC
     ''', (athlete_id, target_date_str))
     rows = cursor.fetchall()
     conn.close()
 
     quests = [dict(r) for r in rows]
+    
+    # ENFORCE ROLLING 7 DAYS: If less than 7 days exist from today onward, regenerate to top it up!
+    # A single day could have multiple quests, so we count unique dates.
+    unique_dates = set(q['plan_date'] for q in quests)
+    if len(unique_dates) < 7 and target_date_str == date.today().strftime("%Y-%m-%d"):
+        cursor.execute("SELECT active_goal FROM users WHERE id = ?", (athlete_id,))
+        user_row = cursor.fetchone()
+        active_goal = user_row["active_goal"] if user_row and user_row["active_goal"] else "Stay Fit"
+        
+        from agent import generate_weekly_plan
+        plan_response = generate_weekly_plan(athlete_id, target_date_str, None, None, active_goal)
+        
+        # Clear existing uncompleted entries from today forward
+        cursor.execute("DELETE FROM training_plans WHERE athlete_id = ? AND plan_date >= ?", (athlete_id, target_date_str))
+        
+        for day in plan_response.get("weekly_plan", []):
+            plan_date = day["date"]
+            cursor.execute('''
+                INSERT INTO training_plans (
+                    athlete_id, plan_date, intensity_category, target_load, 
+                    status, revision_reason, quest_title, session_description, task_type, target_rpe, duration_minutes, target_steps, target_calories, is_completed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (
+                athlete_id, plan_date, day["intensity"], day.get("target_rpe", 5) * day.get("duration_mins", 30),
+                "planned", ", ".join(plan_response.get("constraint_reasons", [])) if plan_response.get("was_revised") else "",
+                f"{day['intensity']} Training", day["session_description"], "workout", 
+                day.get("target_rpe", 5), day.get("duration_mins", 30), day.get("target_steps", 10000), day.get("target_calories", 2500)
+            ))
+        conn.commit()
+        
+        # Refetch the newly generated 7 days
+        cursor.execute('''
+            SELECT id, athlete_id, plan_date, intensity_category, target_load, status,
+                   revision_reason, quest_title, session_description, task_type,
+                   target_rpe, duration_minutes, target_steps, target_calories, is_completed, completed_at
+            FROM training_plans
+            WHERE athlete_id = ? AND plan_date >= ?
+            ORDER BY plan_date ASC, id ASC
+        ''', (athlete_id, target_date_str))
+        rows = cursor.fetchall()
+        quests = [dict(r) for r in rows]
+
     return {
         "status": "success",
         "plan_date": target_date_str,
@@ -382,12 +425,33 @@ def complete_quest_body(payload: QuestCompleteRequest):
 
 # --- User Profile & Streak API ---
 
+@app.post("/api/user/goal")
+def update_user_goal(goal: str = Body(..., embed=True), user_id: int = 1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    end_date = (date.today() + timedelta(days=6)).strftime("%Y-%m-%d")
+    cursor.execute("UPDATE users SET active_goal = ?, goal_end_date = ? WHERE id = ?", (goal, end_date, user_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Goal updated successfully", "active_goal": goal, "goal_end_date": end_date}
+
+@app.post("/api/user/goal/complete")
+def complete_user_goal(user_id: int = 1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET active_goal = NULL, goal_end_date = NULL WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Goal completed"}
+
+
+
 @app.get("/api/user/profile")
 def get_user_profile(user_id: int = 1):
     """Returns athlete profile and current streak information."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, last_active_date, last_streak_date, created_at FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     conn.close()
 
@@ -401,7 +465,9 @@ def get_user_profile(user_id: int = 1):
         "id": user_dict["id"],
         "name": user_dict["name"],
         "daily_streak": user_dict["daily_streak"],
-        "current_streak": user_dict["current_streak"]
+        "current_streak": user_dict["current_streak"],
+        "active_goal": user_dict.get("active_goal", "Stay Fit"),
+        "goal_end_date": user_dict.get("goal_end_date")
     }
 
 

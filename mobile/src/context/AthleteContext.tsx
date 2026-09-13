@@ -19,6 +19,8 @@ export interface AthleteContextType {
   completeQuest: (questId: number) => Promise<void>;
   refreshQuests: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateGoal: (goal: string) => Promise<void>;
+  completeGoal: () => Promise<void>;
   syncHealth: () => Promise<void>;
 }
 
@@ -43,6 +45,16 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
   const [healthProviderName, setHealthProviderName] = useState<string>('Mock Health Provider Active');
 
+  
+
+  
+  const completeGoal = useCallback(async () => {
+    setLoading(true);
+    await api.completeGoal(1);
+    await refreshProfile();
+    setLoading(false);
+  }, [refreshProfile]);
+
   const healthProvider = useMemo(() => getHealthProvider(), []);
 
   const refreshProfile = useCallback(async () => {
@@ -57,12 +69,26 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshQuests = useCallback(async () => {
     try {
-      const todayQuests = await api.getTodayPlan(1);
+      const todayQuests = await api.get7DayPlan(1);
       setQuests(todayQuests);
     } catch {
       // Fallback already handled in api.ts
     }
   }, []);
+
+  const updateGoal = useCallback(async (goal: string) => {
+    setLoading(true);
+    await api.updateGoal(goal, 1);
+    await refreshProfile();
+    // Setting a new goal also recalculates the plan
+    await fetch('/api/plan/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ athlete_id: 1, active_goal: goal }),
+    });
+    await refreshQuests();
+    setLoading(false);
+  }, [refreshProfile, refreshQuests]);
 
   const syncHealth = useCallback(async () => {
     try {
@@ -161,6 +187,8 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         refreshQuests,
         refreshProfile,
         syncHealth,
+        updateGoal,
+        completeGoal,
       }}
     >
       {children}

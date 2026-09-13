@@ -132,7 +132,9 @@ def init_db(db_path: str = None):
         'target_rpe': 'INTEGER DEFAULT 5',
         'duration_minutes': 'INTEGER DEFAULT 30',
         'is_completed': 'BOOLEAN DEFAULT 0',
-        'completed_at': 'TIMESTAMP'
+        'completed_at': 'TIMESTAMP',
+        'target_steps': 'INTEGER DEFAULT 10000',
+        'target_calories': 'INTEGER DEFAULT 2500'
     }
 
     for col_name, col_def in plan_migrations.items():
@@ -147,6 +149,7 @@ def init_db(db_path: str = None):
         'current_streak': 'INTEGER DEFAULT 12',
         'daily_streak': 'INTEGER DEFAULT 12',
         'sport_type': 'TEXT DEFAULT "Soccer"',
+        'active_goal': 'TEXT DEFAULT "Stay Fit"',
         'last_active_date': 'DATE',
         'last_streak_date': 'DATE',
         'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
