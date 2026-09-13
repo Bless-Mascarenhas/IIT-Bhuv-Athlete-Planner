@@ -7,8 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .agent import get_onboarding_response, generate_daily_quests, generate_weekly_plan
-from .algorithm import get_db_connection
-from .database import init_db
+from .database import init_db, get_db_connection
 from .intent_router import process_chat
 
 # Initialize tables and dynamic migrations on startup

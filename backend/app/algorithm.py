@@ -3,12 +3,7 @@ from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime, timedelta
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "athlete_planner.db")
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from .database import get_db_connection
 
 def calculate_acwr(athlete_id: int, current_date_str: str) -> float:
     """Calculates Acute (7-day sum) to Chronic (28-day weekly average) Workload Ratio."""
