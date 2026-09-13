@@ -11,13 +11,18 @@ export default function Header() {
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleUpgrade = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !userId) {
+    if (!email || !password || !confirmPassword || !userId) {
       setError('Please fill in all fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
     
@@ -153,6 +158,18 @@ export default function Header() {
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  className="neu-inset"
+                  placeholder="••••••••"
+                  style={{ padding: '0.85rem', borderRadius: '10px', border: 'none', outline: 'none', backgroundColor: 'transparent' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#636e72', marginLeft: '0.5rem' }}>Confirm Password</label>
+                <input 
+                  type="password" 
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
                   className="neu-inset"
                   placeholder="••••••••"
                   style={{ padding: '0.85rem', borderRadius: '10px', border: 'none', outline: 'none', backgroundColor: 'transparent' }}
