@@ -1,39 +1,90 @@
-# Autonomous Athlete Performance Planner - Implementation Plan
+# Pace — Mobile App Spec (v2)
 
-## Phase 1: Project Setup & Data Simulation
-- [ ] Initialize the project repository (Python Backend, Capacitor/Web Frontend).
-- [ ] Set up SQLite Database and define schemas (Athlete Profile, Workload, Recovery, Events).
-- [ ] Build a Mock API/Service to generate synthetic GPS, workload, and wellness data.
-- [ ] Implement a Mock Calendar Service for upcoming match schedules.
-**Checkpoint:** The mock services can reliably generate consistent data and be queried via API endpoints. The process iterates until the synthetic data accurately reflects realistic athlete metrics without throwing errors.
+**App name: Pace.** The AI agent that powers onboarding, chat, planning, and reporting is also named **Pace** — it's the single persistent persona the athlete talks to throughout the app.
 
-## Phase 2: Load-Management Algorithm & Constraints
-- [ ] Define the core load-management algorithm incorporating ACWR and custom hard rules.
-- [ ] Implement scheduling logic to assign rest, light training, or heavy training days.
-- [ ] Implement verification logic to ensure workload constraints (e.g., fatigue thresholds) are never breached.
-- [ ] Write unit tests for the algorithm ensuring it properly flags constraint violations.
-**Checkpoint:** The algorithm can take a state (fatigue + upcoming match) and successfully output a valid 7-day training plan. Iterates until constraints are strictly mathematically enforced.
+This document outlines the Capacitor-based mobile app structure with Health Connect/HealthKit data ingestion, a conversational AI agent that updates the database, a Home Dashboard focused on today's tasks, and a dedicated Planner tab for the 7-day rolling forecast.
 
-## Phase 3: Autonomous Agent Architecture (Groq Integration)
-- [ ] Integrate the Groq API to power the core agent reasoning.
-- [ ] Build the "Onboarding Agent" (Grill mode) to interview the user and populate initial stats.
-- [ ] Build the "Planner Agent" that ingests daily simulated data, evaluates the current plan, and recalculates when necessary.
-- [ ] Implement the trigger mechanism to force at least 2 meaningful plan revisions based on simulated fatigue/schedule changes.
-- [ ] Ensure agent logic aligns with the strict medical guardrails (no medical/injury claims).
-**Checkpoint:** The agent can autonomously evaluate a shift in wellness data, output a revised plan twice, and successfully verify it against the Phase 2 constraints. Iterates until reasoning and guardrails are flawlessly maintained.
+---
 
-## Phase 4: Web UI (Neumorphic Design) & Capacitor Integration
-- [ ] Set up the frontend framework optimized for Capacitor deployment.
-- [ ] Implement the Neumorphic design system (soft shadows, low contrast borders, matching background/element colors).
-- [ ] Build the Dashboard View with "Enter Manually" and "Pull from Device" workflows.
-- [ ] Build the Event Tracker and Daily Schedule views.
-- [ ] Build the Persistent Chat interface that hovers across all pages for direct agent interaction.
-- [ ] Integrate click-to-edit interactions to trigger specific planners.
-**Checkpoint:** The Web UI matches the exact Neumorphic aesthetic, handles responsive routing, and successfully communicates with the Python APIs. Iterates until visual constraints and UX flows are perfect.
+## 1. Tech Stack
 
-## Phase 5: Integration & Verification
-- [ ] Connect the Web UI to the backend Agent logic and Data simulators.
-- [ ] Implement end-to-end testing of the onboarding "grilling" flow.
-- [ ] Test the daily update flow: UI shows new synthetic data -> Agent reacts -> Dashboard updates.
-- [ ] Final validation against the problem statement requirements (showing 2 revisions, constraint checking).
-**Checkpoint:** Complete E2E system run without errors. Iterates until the demonstration seamlessly satisfies the problem statement.
+| Layer | Choice | Notes |
+|---|---|---|
+| **Frontend** | Capacitor + React (TypeScript) | Native iOS/Android app, built mobile-first. |
+| **Backend** | Python (FastAPI) | Serves the app + hosts Pace's agent logic. |
+| **Database** | SQLite | Athlete profile, workload, recovery, plan, events, chat log. |
+| **AI Agent** | Groq API (LLM) | Powers Pace for reasoning, intent classification, and planning. |
+| **Fitness Data** | `@capawesome-team/capacitor-health` | Health Connect (Android) + HealthKit (iOS) for Steps, HR, sleep, etc. |
+| **Location Data**| Capacitor Geolocation | GPS-based load context. |
+
+---
+
+## 2. Database Schema (Outline)
+
+- **`athlete_profile`**: id, name, dob, height, weight, sport, goals, profile_pic_url, daily_streak
+- **`daily_metrics`**: date, steps, active_calories, distance, sleep_minutes, resting_hr, hrv, source
+- **`workload_log`**: date, acute_load, chronic_load, acwr, fatigue_score, status
+- **`daily_plan`**: date, task_id, task_name, task_type, duration, intensity, status (pending/done/skipped), source
+- **`events`**: event_id, title, date, type (match/trial/other), location, source (manual/chat)
+- **`chat_log`**: message_id, timestamp, role, text, parsed_intent, resulting_action
+- **`daily_report`**: date, plan_completion_pct, fatigue_trend, summary_text
+
+---
+
+## 3. AI Agent Architecture (Pace)
+
+### 3.1 Chat Agent (Intent Router)
+Every message from the user goes through an **intent classification step**:
+1. **Data-entry intent**: (e.g., "Add a friendly match this Saturday"). Pace extracts structured fields -> writes to `events` -> confirms in chat.
+2. **Plan-modification intent**: (e.g., "Make today lighter, my knee hurts"). Pace recalculates ACWR/fatigue -> updates `daily_plan` -> confirms.
+3. **General query intent**: (e.g., "What should I eat before a match?"). Pace responds conversationally with no DB writes.
+
+### 3.2 Planner Logic
+- Runs whenever new Health data syncs or chat modifies constraints.
+- Recomputes ACWR + fatigue.
+- Generates a **rolling 7-day plan**, respecting medical/fatigue guardrails.
+
+### 3.3 Reporting Engine
+- Runs daily to generate **Yesterday's Report**.
+- Compares completed tasks against Health data to write a motivational summary into `daily_report`.
+
+---
+
+## 4. App Structure & UI Layout
+
+### 4.1 Global Header (Persistent)
+- **Left**: Pace Logo
+- **Center**: Dynamic Greeting ("Good Morning Champ!!")
+- **Right**: Daily Streak Counter (🔥 icon, increments when tasks are completed).
+
+### 4.2 Global Footer (Bottom Nav Bar)
+Strava-style 5-icon navigation:
+1. **Home / Dashboard** 
+2. **Planner** 
+3. **Pace AI Chat** 
+4. **Event Calendar** 
+5. **Settings / Profile**
+
+### 4.3 Dashboard (Home Tab)
+The dashboard provides a high-level overview of the athlete's current state and strictly focuses on **Today**.
+- **Stats Section (Grid)**: Live data pulled via the Health plugin's `aggregate()` API (Steps, Active Calories, Distance, Sleep, Resting HR).
+- **Workload Graph**: A line chart showing the ACWR curve. Updates when a task is ticked done.
+- **Quests Completed (Yesterday's Report)**: Summary of yesterday's completed tasks + health data.
+- **Today's Quests**: A preview widget showing *only today's* AI-generated tasks. Tapping tasks navigates to the Planner.
+- **Upcoming Trials**: Preview of next events from the `events` table. Tapping navigates to the Calendar.
+
+### 4.4 Daily Planner (Planner Tab)
+- Displays the full **7-Day Rolling Plan** generated by the AI.
+- Users can view, add, delete, or edit tasks for any day in the week.
+- Any manual edit recalculates the summary and feeds back into the ACWR engine so Pace adapts.
+
+### 4.5 Event Calendar (Calendar Tab)
+- Full calendar view to manually add, edit, or remove events (Matches, Trials, Rest days).
+
+### 4.6 Pace AI Chat (Chat Tab)
+- Persistent conversation history.
+- Handles all three intents (Data entry, Plan modification, General QA).
+
+### 4.7 User Settings (Profile Tab)
+- Profile picture upload (serves as the tab icon).
+- Editable fields: Username, weight, height, and core metrics.
