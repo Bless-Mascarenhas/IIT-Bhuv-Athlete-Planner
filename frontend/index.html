@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autonomous Athlete Planner</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             background-color: #e0e5ec;
@@ -64,7 +65,7 @@
             height: 400px;
             display: flex;
             flex-direction: column;
-            display: none; /* hidden by default */
+            display: none;
         }
         .chat-toggle {
             position: fixed;
@@ -89,11 +90,6 @@
             background: #e0e5ec;
             font-size: 0.9rem;
         }
-        .plan-output {
-            margin-top: 1rem;
-            font-size: 1rem;
-            line-height: 1.6;
-        }
         .tag {
             display: inline-block;
             padding: 0.4rem 0.8rem;
@@ -115,21 +111,27 @@
     <div class="container">
         <h1 style="text-align: center; margin-bottom: 2rem;">Autonomous Athlete Planner</h1>
         
+        <!-- ACWR Analytics Chart -->
+        <div class="neu-box">
+            <h2>Workload Analysis (ACWR)</h2>
+            <p style="font-size: 0.9em; margin-bottom: 1.5rem;">Visualizing your 28-day rolling Acute:Chronic Workload Ratio. The AI forces a revision when you cross the 1.5 red danger line.</p>
+            <canvas id="acwrChart" height="150"></canvas>
+        </div>
+
+        <!-- Data Entry -->
         <div class="neu-box">
             <h2>Daily Data Entry</h2>
             <p>Log your latest workout and current wellness.</p>
-            
             <div class="grid-2">
                 <div>
                     <label><strong>Workout RPE</strong> (1-10)</label>
-                    <input type="number" id="rpe" class="neu-input" value="5" min="1" max="10" title="Rating of Perceived Exertion for your last session">
+                    <input type="number" id="rpe" class="neu-input" value="5" min="1" max="10">
                 </div>
                 <div>
                     <label><strong>Duration</strong> (Minutes)</label>
                     <input type="number" id="duration" class="neu-input" value="60" min="0">
                 </div>
             </div>
-
             <div class="grid-2">
                 <div>
                     <label><strong>Fatigue</strong> (1-10, 10=Worst)</label>
@@ -140,7 +142,6 @@
                     <input type="number" id="sleep" class="neu-input" value="8" min="1" max="10">
                 </div>
             </div>
-            
             <button class="neu-button" onclick="submitAndGeneratePlan()" style="width: 100%; margin-top: 1rem;">Log Data & Generate Plan</button>
         </div>
 
@@ -150,12 +151,12 @@
         </div>
     </div>
 
-    <!-- Hovering Chat Widget -->
+    <!-- Floating Chat Box -->
     <button class="neu-button chat-toggle" onclick="toggleChat()">💬</button>
     <div class="neu-box chat-widget" id="chat-widget">
         <h3 style="margin-top:0;">Coach Agent</h3>
         <div class="chat-messages" id="chat-messages">
-            <div style="margin-bottom: 10px;"><strong>Agent:</strong> Hello! I am your performance planner. Are you ready to establish your baseline?</div>
+            <div style="margin-bottom: 10px;"><strong>Agent:</strong> Hello! Ready to establish your baseline?</div>
         </div>
         <div style="display:flex; gap:10px;">
             <input type="text" id="chat-input" class="neu-input" style="margin:0;" placeholder="Type a message...">
@@ -166,6 +167,65 @@
     <script>
         const API_URL = 'http://localhost:8000';
         let chatHistory = [];
+
+        // Load the ACWR Chart on Startup
+        async function loadChart() {
+            try {
+                const res = await fetch(`${API_URL}/api/data/acwr_history`);
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    const labels = data.history.map(item => item.date);
+                    const acwrData = data.history.map(item => item.acwr);
+                    const dangerLine = data.history.map(() => 1.5); // Fixed line at 1.5
+
+                    const ctx = document.getElementById('acwrChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Actual ACWR',
+                                    data: acwrData,
+                                    borderColor: '#0984e3',
+                                    backgroundColor: 'rgba(9, 132, 227, 0.1)',
+                                    borderWidth: 3,
+                                    fill: true,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Danger Zone (1.5 Limit)',
+                                    data: dangerLine,
+                                    borderColor: '#ff7675',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    pointRadius: 0
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    suggestedMax: 2.0,
+                                    title: { display: true, text: 'ACWR Ratio' }
+                                }
+                            },
+                            plugins: {
+                                legend: { position: 'bottom' }
+                            }
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("Failed to load chart data", e);
+            }
+        }
+        
+        document.addEventListener("DOMContentLoaded", loadChart);
 
         async function submitAndGeneratePlan() {
             const fatigue = document.getElementById('fatigue').value;
@@ -180,7 +240,6 @@
             container.style.display = 'block';
 
             try {
-                // 1. Submit the workout log so the backend ACWR math updates!
                 const today = new Date().toISOString().split('T')[0];
                 await fetch(`${API_URL}/api/logs/submit`, {
                     method: 'POST',
@@ -192,11 +251,10 @@
                         duration_minutes: parseInt(duration),
                         sleep_quality: parseInt(sleep),
                         fatigue: parseInt(fatigue),
-                        soreness: parseInt(fatigue) // tying soreness to fatigue for simplicity
+                        soreness: parseInt(fatigue)
                     })
                 });
 
-                // 2. Request the generated plan considering the new data
                 const res = await fetch(`${API_URL}/api/plan/generate?athlete_id=1&target_date=${today}&current_fatigue=${fatigue}&current_sleep=${sleep}`, {
                     method: 'POST'
                 });

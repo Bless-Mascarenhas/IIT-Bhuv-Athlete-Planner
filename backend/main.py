@@ -43,6 +43,41 @@ class Event(BaseModel):
 def read_root():
     return {"status": "ok", "message": "Athlete Planner API is running. Ready for Capacitor UI."}
 
+import csv
+import os
+
+@app.get("/api/data/acwr_history")
+def get_acwr_history():
+    """Reads user_data.csv and returns calculated ACWR history for Chart.js"""
+    csv_path = os.path.join(os.path.dirname(__file__), "user_data.csv")
+    history = []
+    try:
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+    except FileNotFoundError:
+        return {"status": "error", "message": "user_data.csv not found"}
+        
+    # Start calculation from day 28 so we have enough data for a 28-day chronic load
+    for i in range(27, len(rows)):
+        current_day = rows[i]
+        
+        # Acute: Last 7 days (i-6 to i)
+        acute_sum = sum(float(rows[j]['RPE']) * float(rows[j]['Duration_mins']) for j in range(i-6, i+1))
+            
+        # Chronic: Last 28 days (i-27 to i)
+        chronic_sum = sum(float(rows[j]['RPE']) * float(rows[j]['Duration_mins']) for j in range(i-27, i+1))
+        chronic_weekly_avg = chronic_sum / 4.0
+        
+        acwr = round(acute_sum / chronic_weekly_avg, 2) if chronic_weekly_avg > 0 else 0
+        history.append({
+            "date": current_day['Date'],
+            "acwr": acwr,
+            "workload": float(current_day['RPE']) * float(current_day['Duration_mins'])
+        })
+        
+    return {"status": "success", "history": history}
+
 @app.post("/api/onboard/chat")
 def onboard_chat(request: ChatRequest):
     """Endpoint for the 'Grill' Agent."""
