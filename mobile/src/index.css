@@ -1,0 +1,46 @@
+:root {
+  --bg: #e0e5ec;
+  --text: #4a4a4a;
+  --primary: #0984e3;
+  --danger: #ff7675;
+  --neu-shadow: 9px 9px 16px rgb(163,177,198,0.6), -9px -9px 16px rgba(255,255,255, 0.5);
+  --neu-shadow-inset: inset 5px 5px 10px rgb(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255, 0.5);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg);
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+.neu-box {
+  background-color: var(--bg);
+  border-radius: 20px;
+  box-shadow: var(--neu-shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.neu-btn {
+  background-color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 5px 5px 10px rgb(163,177,198,0.6), -5px -5px 10px rgba(255,255,255, 0.5);
+  color: var(--text);
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.neu-btn:active, .neu-btn.active {
+  box-shadow: var(--neu-shadow-inset);
+  color: var(--primary);
+}
