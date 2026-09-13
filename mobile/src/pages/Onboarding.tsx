@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowRight, Activity, Target } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 

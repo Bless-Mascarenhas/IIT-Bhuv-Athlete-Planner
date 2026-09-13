@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useAthlete } from '../context/AthleteContext';
-import { User, Flame, ShieldCheck, RefreshCw, Check, Trophy } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { User, Flame, ShieldCheck, RefreshCw, Check, Trophy, LogOut } from 'lucide-react';
 
 export default function Settings() {
   const { athlete, streak, healthProviderName, syncHealth } = useAthlete();
+  const { logout } = useAuth();
   const [name, setName] = useState(athlete?.name || 'Alex Rivera');
   const [sport, setSport] = useState(athlete?.sport_type || 'Football (Forward)');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -247,6 +249,27 @@ export default function Settings() {
           </button>
         </form>
       </div>
+
+      {/* Logout Button */}
+      <button
+        onClick={() => logout()}
+        className="neu-btn"
+        style={{
+          width: '100%',
+          padding: '1rem',
+          color: '#d63031',
+          fontSize: '0.9rem',
+          fontWeight: 800,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '1rem'
+        }}
+      >
+        <LogOut size={18} />
+        Log Out / Change User
+      </button>
     </div>
   );
 }
