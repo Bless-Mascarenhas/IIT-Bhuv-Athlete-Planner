@@ -775,11 +775,14 @@ def get_dataset_health():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/admin/reset-streaks")
-def reset_streaks():
+@app.post("/admin/restore-streaks")
+def restore_streaks():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET current_streak = 0, daily_streak = 0")
+    # Restore existing accounts to a streak of 12
+    cursor.execute("UPDATE users SET current_streak = 12, daily_streak = 12 WHERE is_guest = false")
+    # Make sure guest accounts stay at 0
+    cursor.execute("UPDATE users SET current_streak = 0, daily_streak = 0 WHERE is_guest = true")
     conn.commit()
     conn.close()
-    return {"message": "All streaks reset to 0"}
+    return {"message": "Existing accounts restored to 12"}
