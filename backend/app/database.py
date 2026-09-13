@@ -1,24 +1,23 @@
-import sqlite3
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "athlete_planner.db")
+# The URL from the user
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:[YOUR-PASSWORD]@db.jgfztxjzgjuvedhiqdjm.supabase.co:5432/postgres")
 
-def get_db_connection(db_path: str = None):
-    """Returns a SQLite connection with Row row_factory for dict-like access."""
-    target_path = db_path if db_path else DB_PATH
-    conn = sqlite3.connect(target_path)
-    conn.row_factory = sqlite3.Row
+def get_db_connection():
+    """Returns a PostgreSQL connection with RealDictCursor for dict-like access."""
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
 
-def init_db(db_path: str = None):
-    target_path = db_path if db_path else DB_PATH
-    conn = sqlite3.connect(target_path)
+def init_db():
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     # Athletes Table (preserved for backward compatibility)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS athletes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         sport_type TEXT DEFAULT 'team_sport',
         baseline_fatigue REAL DEFAULT 5.0,
@@ -32,17 +31,20 @@ def init_db(db_path: str = None):
         cursor.execute('''
             INSERT INTO athletes (id, name, sport_type, baseline_fatigue, baseline_sleep)
             VALUES (1, 'Champ', 'team_sport', 5.0, 7.0)
+            ON CONFLICT (id) DO NOTHING
         ''')
 
     # Users Table for athlete profile and streak tracking
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT,
         current_streak INTEGER DEFAULT 12,
         daily_streak INTEGER DEFAULT 12,
         sport_type TEXT DEFAULT 'Soccer',
+        active_goal TEXT DEFAULT 'Stay Fit',
+        goal_end_date DATE,
         last_active_date DATE,
         last_streak_date DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -52,19 +54,19 @@ def init_db(db_path: str = None):
     # Events / Match Calendar Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         athlete_id INTEGER,
         event_date DATE NOT NULL,
-        event_type TEXT NOT NULL, -- e.g., 'match', 'training'
+        event_type TEXT NOT NULL,
         duration_minutes INTEGER,
-        FOREIGN KEY(athlete_id) REFERENCES athletes(id)
+        FOREIGN KEY(athlete_id) REFERENCES athletes(id) ON DELETE CASCADE
     )
     ''')
 
-    # Daily Logs (Data pulled from device or entered manually)
+    # Daily Logs
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS daily_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         athlete_id INTEGER,
         log_date DATE NOT NULL,
         rpe INTEGER, 
@@ -72,15 +74,15 @@ def init_db(db_path: str = None):
         sleep_quality INTEGER, 
         fatigue INTEGER, 
         soreness INTEGER,
-        acute_workload REAL, -- RPE * duration_minutes (Session-RPE method)
-        FOREIGN KEY(athlete_id) REFERENCES athletes(id)
+        acute_workload REAL,
+        FOREIGN KEY(athlete_id) REFERENCES athletes(id) ON DELETE CASCADE
     )
     ''')
 
     # Google Fit Telemetry Logs Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS google_fit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER,
         log_date DATE NOT NULL,
         steps INTEGER DEFAULT 0,
@@ -96,96 +98,40 @@ def init_db(db_path: str = None):
         source TEXT DEFAULT 'google_fit',
         synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, log_date),
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     ''')
 
-    # Training Plans (1-Day Rolling Quests & Historical Plans)
+    # Training Plans
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS training_plans (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         athlete_id INTEGER,
         plan_date DATE NOT NULL,
-        intensity_category TEXT NOT NULL DEFAULT 'Moderate', -- 'Rest', 'Recovery', 'Moderate', 'High'
+        intensity_category TEXT NOT NULL DEFAULT 'Moderate',
         target_load REAL DEFAULT 0.0,
-        status TEXT DEFAULT 'planned', -- 'planned', 'completed', 'revised'
+        status TEXT DEFAULT 'planned',
         revision_reason TEXT DEFAULT '',
         quest_title TEXT DEFAULT '',
         session_description TEXT DEFAULT '',
-        task_type TEXT DEFAULT 'workout', -- 'workout', 'recovery', 'wellness'
+        task_type TEXT DEFAULT 'workout',
         target_rpe INTEGER DEFAULT 5,
         duration_minutes INTEGER DEFAULT 30,
-        is_completed BOOLEAN DEFAULT 0,
+        target_steps INTEGER DEFAULT 10000,
+        target_calories INTEGER DEFAULT 2500,
+        is_completed BOOLEAN DEFAULT false,
         completed_at TIMESTAMP,
-        FOREIGN KEY(athlete_id) REFERENCES athletes(id)
+        FOREIGN KEY(athlete_id) REFERENCES athletes(id) ON DELETE CASCADE
     )
     ''')
-
-    # Dynamic schema migration for training_plans table
-    cursor.execute("PRAGMA table_info(training_plans)")
-    existing_plan_cols = [col[1] for col in cursor.fetchall()]
-
-    plan_migrations = {
-        'quest_title': 'TEXT DEFAULT ""',
-        'session_description': 'TEXT DEFAULT ""',
-        'task_type': 'TEXT DEFAULT "workout"',
-        'target_rpe': 'INTEGER DEFAULT 5',
-        'duration_minutes': 'INTEGER DEFAULT 30',
-        'is_completed': 'BOOLEAN DEFAULT 0',
-        'completed_at': 'TIMESTAMP',
-        'target_steps': 'INTEGER DEFAULT 10000',
-        'target_calories': 'INTEGER DEFAULT 2500'
-    }
-
-    for col_name, col_def in plan_migrations.items():
-        if col_name not in existing_plan_cols:
-            cursor.execute(f"ALTER TABLE training_plans ADD COLUMN {col_name} {col_def}")
-
-    # Dynamic schema migration for users table
-    cursor.execute("PRAGMA table_info(users)")
-    existing_user_cols = [col[1] for col in cursor.fetchall()]
-
-    user_migrations = {
-        'current_streak': 'INTEGER DEFAULT 12',
-        'daily_streak': 'INTEGER DEFAULT 12',
-        'sport_type': 'TEXT DEFAULT "Soccer"',
-        'active_goal': 'TEXT DEFAULT "Stay Fit"',
-        'last_active_date': 'DATE',
-        'last_streak_date': 'DATE',
-        'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-    }
-
-    for col_name, col_def in user_migrations.items():
-        if col_name not in existing_user_cols:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
-
-    # Dynamic schema migration for google_fit_logs table
-    cursor.execute("PRAGMA table_info(google_fit_logs)")
-    existing_fit_cols = [col[1] for col in cursor.fetchall()]
-
-    fit_migrations = {
-        'active_calories': 'REAL DEFAULT 0.0',
-        'calories_burned': 'REAL DEFAULT 0.0',
-        'distance_meters': 'REAL DEFAULT 0.0',
-        'sleep_minutes': 'INTEGER DEFAULT 0',
-        'sleep_hours': 'REAL DEFAULT 0.0',
-        'heart_rate_avg': 'REAL DEFAULT 0.0',
-        'resting_hr': 'REAL DEFAULT 0.0',
-        'heart_rate_resting': 'REAL DEFAULT 0.0',
-        'hrv': 'REAL DEFAULT 0.0',
-        'source': 'TEXT DEFAULT "google_fit"'
-    }
-
-    for col_name, col_def in fit_migrations.items():
-        if col_name not in existing_fit_cols:
-            cursor.execute(f"ALTER TABLE google_fit_logs ADD COLUMN {col_name} {col_def}")
 
     # Seed default user (id=1, name='Champ', daily_streak=12) if empty
     cursor.execute("SELECT count(*) FROM users")
     if cursor.fetchone()[0] == 0:
         cursor.execute('''
             INSERT INTO users (id, name, email, current_streak, daily_streak, sport_type, last_active_date, last_streak_date)
-            VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', DATE('now', '-1 day'), DATE('now', '-1 day'))
+            VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
+            ON CONFLICT (id) DO NOTHING
         ''')
     else:
         # Ensure user id=1 exists
@@ -194,16 +140,16 @@ def init_db(db_path: str = None):
         if not u:
             cursor.execute('''
                 INSERT INTO users (id, name, email, current_streak, daily_streak, sport_type, last_active_date, last_streak_date)
-                VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', DATE('now', '-1 day'), DATE('now', '-1 day'))
+                VALUES (1, 'Champ', 'athlete@pace.ai', 12, 12, 'Soccer', CURRENT_DATE - INTERVAL '1 day', CURRENT_DATE - INTERVAL '1 day')
+                ON CONFLICT (id) DO NOTHING
             ''')
         else:
-            # Sync last_streak_date if null
             if u[2] is None:
-                cursor.execute("UPDATE users SET last_streak_date = DATE('now', '-1 day'), last_active_date = DATE('now', '-1 day') WHERE id=1")
+                cursor.execute("UPDATE users SET last_streak_date = CURRENT_DATE - INTERVAL '1 day', last_active_date = CURRENT_DATE - INTERVAL '1 day' WHERE id=1")
 
     conn.commit()
     conn.close()
-    print(f"Database initialized at {target_path}")
+    print("PostgreSQL Database initialized at Supabase")
 
 if __name__ == "__main__":
     init_db()

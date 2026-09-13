@@ -277,7 +277,7 @@ def execute_update_calendar(
     cursor.execute(
         """
         INSERT INTO events (athlete_id, event_date, event_type, duration_minutes)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
         """,
         (athlete_id, resolved_date, resolved_type, resolved_duration)
     )
@@ -329,7 +329,7 @@ def execute_update_plan(athlete_id: int, message: str) -> dict:
     revision_reason = f"Athlete feedback: {message[:100]}"
 
     cursor.execute(
-        "SELECT id, duration_minutes FROM training_plans WHERE athlete_id = ? AND plan_date = ?",
+        "SELECT id, duration_minutes FROM training_plans WHERE athlete_id = %s AND plan_date = ?",
         (athlete_id, today_str)
     )
     plans = cursor.fetchall()
@@ -341,9 +341,9 @@ def execute_update_plan(athlete_id: int, message: str) -> dict:
             cursor.execute(
                 """
                 UPDATE training_plans
-                SET intensity_category = ?, target_rpe = ?, target_load = ?,
-                    status = 'revised', revision_reason = ?, quest_title = ?, session_description = ?
-                WHERE id = ?
+                SET intensity_category = %s, target_rpe = %s, target_load = %s,
+                    status = 'revised', revision_reason = %s, quest_title = %s, session_description = %s
+                WHERE id = %s
                 """,
                 (new_intensity, new_rpe, target_load, revision_reason, new_title, new_desc, p['id'])
             )
@@ -353,7 +353,7 @@ def execute_update_plan(athlete_id: int, message: str) -> dict:
             INSERT INTO training_plans
             (athlete_id, plan_date, intensity_category, target_load, status, revision_reason,
              quest_title, session_description, task_type, target_rpe, duration_minutes, is_completed)
-            VALUES (?, ?, ?, ?, 'revised', ?, ?, ?, 'recovery', ?, 30, 0)
+            VALUES (%s, %s, %s, %s, 'revised', %s, %s, %s, 'recovery', %s, 30, 0)
             """,
             (athlete_id, today_str, new_intensity, float(new_rpe * 30), revision_reason, new_title, new_desc, new_rpe)
         )

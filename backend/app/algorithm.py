@@ -1,4 +1,5 @@
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime, timedelta
 
@@ -22,7 +23,7 @@ def calculate_acwr(athlete_id: int, current_date_str: str) -> float:
     cursor.execute('''
         SELECT SUM(acute_workload) as acute_load 
         FROM daily_logs 
-        WHERE athlete_id = ? AND log_date > ? AND log_date <= ?
+        WHERE athlete_id = %s AND log_date > %s AND log_date <= %s
     ''', (athlete_id, acute_start.strftime("%Y-%m-%d"), current_date.strftime("%Y-%m-%d")))
     acute_res = cursor.fetchone()
     acute_load = acute_res['acute_load'] if acute_res['acute_load'] else 0
@@ -31,7 +32,7 @@ def calculate_acwr(athlete_id: int, current_date_str: str) -> float:
     cursor.execute('''
         SELECT SUM(acute_workload) as chronic_load 
         FROM daily_logs 
-        WHERE athlete_id = ? AND log_date > ? AND log_date <= ?
+        WHERE athlete_id = %s AND log_date > %s AND log_date <= %s
     ''', (athlete_id, chronic_start.strftime("%Y-%m-%d"), current_date.strftime("%Y-%m-%d")))
     chronic_res = cursor.fetchone()
     chronic_total = chronic_res['chronic_load'] if chronic_res['chronic_load'] else 0
@@ -60,7 +61,7 @@ def get_consecutive_high_intensity_days(athlete_id: int, current_date_str: str) 
     cursor.execute('''
         SELECT plan_date, intensity_category 
         FROM training_plans 
-        WHERE athlete_id = ? AND plan_date >= ? AND plan_date < ?
+        WHERE athlete_id = %s AND plan_date >= %s AND plan_date < %s
         ORDER BY plan_date DESC
     ''', (athlete_id, start_date.strftime("%Y-%m-%d"), current_date_str))
     

@@ -143,17 +143,21 @@ export const api = {
     }
   },
 
-  async generatePlan(athleteId: number = 1, goal?: string): Promise<boolean> {
-    try {
-      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ athlete_id: athleteId, active_goal: goal }),
-      });
-      return res.ok;
-    } catch {
-      return false;
+  async generatePlan(athleteId: number = 1, goal?: string, retries = 3): Promise<boolean> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ athlete_id: athleteId, active_goal: goal }),
+        });
+        if (res.ok) return true;
+      } catch {
+        // network error, continue to wait and retry
+      }
+      if (i < retries - 1) await new Promise(r => setTimeout(r, 10000));
     }
+    return false;
   },
 
   async getProfile(userId: number = 1): Promise<UserProfile> {
@@ -193,40 +197,54 @@ export const api = {
   /**
    * Fetch today's 1-day rolling Quests.
    */
-  async get7DayPlan(athleteId: number = 1, targetDate?: string): Promise<Quest[]> {
+  async get7DayPlan(athleteId: number = 1, targetDate?: string, retries = 3): Promise<Quest[]> {
     const dateStr = targetDate || new Date().toISOString().split('T')[0];
-    try {
-      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/plan/today?athlete_id=${athleteId}&plan_date=${dateStr}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.quests) && data.quests.length > 0) {
-          return data.quests.map((q: any) => ({
-            ...q,
-            is_completed: Boolean(q.is_completed),
-          }));
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/plan/today?athlete_id=${athleteId}&plan_date=${dateStr}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.quests) && data.quests.length > 0) {
+            return data.quests.map((q: any) => ({
+              ...q,
+              is_completed: Boolean(q.is_completed),
+            }));
+          }
+        }
+
+        // If no quests exist yet for today, attempt to generate them
+        const genRes = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ athlete_id: athleteId, target_date: dateStr }),
+        });
+        if (genRes.ok) {
+          const genData = await genRes.json();
+          if (Array.isArray(genData.quests) && genData.quests.length > 0) {
+            return genData.quests.map((q: any) => ({
+              ...q,
+              is_completed: Boolean(q.is_completed),
+            }));
+          }
+        }
+
+        // If we get here but it's not the last retry, the backend might still be waking up or generating
+        if (i < retries - 1) {
+           await new Promise(r => setTimeout(r, 10000));
+           continue;
+        }
+        
+        return DEFAULT_FALLBACK_QUESTS;
+      } catch {
+        if (i < retries - 1) {
+           await new Promise(r => setTimeout(r, 10000));
+        } else {
+           return DEFAULT_FALLBACK_QUESTS;
         }
       }
-
-      // If no quests exist yet for today, attempt to generate them
-      const genRes = await fetch('https://pace-backend-2oyk.onrender.com/api/plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ athlete_id: athleteId, target_date: dateStr }),
-      });
-      if (genRes.ok) {
-        const genData = await genRes.json();
-        if (Array.isArray(genData.quests) && genData.quests.length > 0) {
-          return genData.quests.map((q: any) => ({
-            ...q,
-            is_completed: Boolean(q.is_completed),
-          }));
-        }
-      }
-
-      return DEFAULT_FALLBACK_QUESTS;
-    } catch {
-      return DEFAULT_FALLBACK_QUESTS;
     }
+    return DEFAULT_FALLBACK_QUESTS;
   },
 
   /**

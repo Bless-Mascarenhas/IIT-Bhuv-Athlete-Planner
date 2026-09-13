@@ -194,7 +194,7 @@ def generate_plan(
 
         # Clear existing uncompleted/planned entries for this target date to ensure exactly one day of active quests
         cursor.execute(
-            "DELETE FROM training_plans WHERE athlete_id = ? AND plan_date = ?",
+            "DELETE FROM training_plans WHERE athlete_id = %s AND plan_date = ?",
             (aid, target_date_str)
         )
 
@@ -213,7 +213,7 @@ def generate_plan(
                 INSERT INTO training_plans 
                 (athlete_id, plan_date, intensity_category, target_load, status, revision_reason,
                  quest_title, session_description, task_type, target_rpe, duration_minutes, is_completed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
             ''', (
                 aid,
                 target_date_str,
@@ -272,7 +272,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
                revision_reason, quest_title, session_description, task_type,
                target_rpe, duration_minutes, target_steps, target_calories, is_completed, completed_at
         FROM training_plans
-        WHERE athlete_id = ? AND plan_date >= ?
+        WHERE athlete_id = %s AND plan_date >= %s
         ORDER BY plan_date ASC, id ASC
     ''', (athlete_id, target_date_str))
     rows = cursor.fetchall()
@@ -292,7 +292,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
         plan_response = generate_weekly_plan(athlete_id, target_date_str, None, None, active_goal)
         
         # Clear existing uncompleted entries from today forward
-        cursor.execute("DELETE FROM training_plans WHERE athlete_id = ? AND plan_date >= ?", (athlete_id, target_date_str))
+        cursor.execute("DELETE FROM training_plans WHERE athlete_id = %s AND plan_date >= ?", (athlete_id, target_date_str))
         
         for day in plan_response.get("weekly_plan", []):
             plan_date = day["date"]
@@ -300,7 +300,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
                 INSERT INTO training_plans (
                     athlete_id, plan_date, intensity_category, target_load, 
                     status, revision_reason, quest_title, session_description, task_type, target_rpe, duration_minutes, target_steps, target_calories, is_completed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
             ''', (
                 athlete_id, plan_date, day["intensity"], day.get("target_rpe", 5) * day.get("duration_mins", 30),
                 "planned", ", ".join(plan_response.get("constraint_reasons", [])) if plan_response.get("was_revised") else "",
@@ -315,7 +315,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
                    revision_reason, quest_title, session_description, task_type,
                    target_rpe, duration_minutes, target_steps, target_calories, is_completed, completed_at
             FROM training_plans
-            WHERE athlete_id = ? AND plan_date >= ?
+            WHERE athlete_id = %s AND plan_date >= %s
             ORDER BY plan_date ASC, id ASC
         ''', (athlete_id, target_date_str))
         rows = cursor.fetchall()
@@ -352,8 +352,8 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
     # Update training_plans table
     cursor.execute('''
         UPDATE training_plans
-        SET is_completed = ?, completed_at = ?, status = ?
-        WHERE id = ?
+        SET is_completed = %s, completed_at = %s, status = %s
+        WHERE id = %s
     ''', (completed_int, now_ts, status_str, quest_id))
 
     # Retrieve athlete / user streak
@@ -371,7 +371,7 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
         cursor.execute('''
             SELECT COUNT(*) as total, SUM(is_completed) as completed
             FROM training_plans
-            WHERE athlete_id = ? AND plan_date = ?
+            WHERE athlete_id = %s AND plan_date = %s
         ''', (aid, plan_date_str))
         stats = cursor.fetchone()
         all_completed = (stats['total'] > 0 and stats['total'] == stats['completed'])
@@ -384,8 +384,8 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
         if user:
             cursor.execute('''
                 UPDATE users
-                SET daily_streak = ?, current_streak = ?, last_streak_date = ?, last_active_date = ?
-                WHERE id = ?
+                SET daily_streak = %s, current_streak = %s, last_streak_date = %s, last_active_date = %s
+                WHERE id = %s
             ''', (daily_streak, daily_streak, today_str, today_str, user['id']))
 
     conn.commit()
@@ -430,7 +430,7 @@ def update_user_goal(goal: str = Body(..., embed=True), user_id: int = 1):
     conn = get_db_connection()
     cursor = conn.cursor()
     end_date = (date.today() + timedelta(days=6)).strftime("%Y-%m-%d")
-    cursor.execute("UPDATE users SET active_goal = ?, goal_end_date = ? WHERE id = ?", (goal, end_date, user_id))
+    cursor.execute("UPDATE users SET active_goal = %s, goal_end_date = %s WHERE id = %s", (goal, end_date, user_id))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Goal updated successfully", "active_goal": goal, "goal_end_date": end_date}
@@ -439,7 +439,7 @@ def update_user_goal(goal: str = Body(..., embed=True), user_id: int = 1):
 def complete_user_goal(user_id: int = 1):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET active_goal = NULL, goal_end_date = NULL WHERE id = ?", (user_id,))
+    cursor.execute("UPDATE users SET active_goal = NULL, goal_end_date = NULL WHERE id = %s", (user_id,))
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Goal completed"}
@@ -451,7 +451,7 @@ def get_user_profile(user_id: int = 1):
     """Returns athlete profile and current streak information."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     conn.close()
 
@@ -476,7 +476,7 @@ def get_user_streak(user_id: int = 1):
     """Returns user daily streak counter."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, daily_streak, current_streak, last_streak_date FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, daily_streak, current_streak, last_streak_date FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     conn.close()
 
@@ -510,9 +510,20 @@ def sync_health_telemetry(payload: HealthSyncRequest):
         log_date_str = date.today().strftime("%Y-%m-%d")
 
     cursor.execute('''
-        INSERT OR REPLACE INTO google_fit_logs
+        INSERT INTO google_fit_logs
         (user_id, log_date, steps, active_calories, calories_burned, distance_meters, sleep_minutes, resting_hr, heart_rate_resting, hrv, source, synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id, log_date) DO UPDATE SET
+        steps = EXCLUDED.steps,
+        active_calories = EXCLUDED.active_calories,
+        calories_burned = EXCLUDED.calories_burned,
+        distance_meters = EXCLUDED.distance_meters,
+        sleep_minutes = EXCLUDED.sleep_minutes,
+        resting_hr = EXCLUDED.resting_hr,
+        heart_rate_resting = EXCLUDED.heart_rate_resting,
+        hrv = EXCLUDED.hrv,
+        source = EXCLUDED.source,
+        synced_at = CURRENT_TIMESTAMP
     ''', (
         payload.user_id or 1,
         log_date_str,
@@ -539,7 +550,7 @@ def get_today_health(user_id: int = 1, log_date: Optional[str] = None):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT * FROM google_fit_logs WHERE user_id = ? AND log_date = ?
+        SELECT * FROM google_fit_logs WHERE user_id = %s AND log_date = %s
     ''', (user_id, target_date_str))
     row = cursor.fetchone()
     conn.close()
@@ -569,7 +580,7 @@ def submit_daily_log(log: DailyLog):
         
         cursor.execute('''
             INSERT INTO daily_logs (athlete_id, log_date, rpe, duration_minutes, sleep_quality, fatigue, soreness, acute_workload)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ''', (log.athlete_id, log.log_date.strftime("%Y-%m-%d"), log.rpe, log.duration_minutes, log.sleep_quality, log.fatigue, log.soreness, acute_workload))
         
         conn.commit()
@@ -584,7 +595,7 @@ def get_events(athlete_id: int = 1):
     """Returns calendar events / matches for the athlete."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, athlete_id, event_date, event_type, duration_minutes FROM events WHERE athlete_id = ? ORDER BY event_date ASC", (athlete_id,))
+    cursor.execute("SELECT id, athlete_id, event_date, event_type, duration_minutes FROM events WHERE athlete_id = %s ORDER BY event_date ASC", (athlete_id,))
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -595,7 +606,7 @@ def delete_event(event_id: int):
     """Deletes an event by ID."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
+    cursor.execute("DELETE FROM events WHERE id = %s", (event_id,))
     conn.commit()
     conn.close()
     return {"status": "success", "message": f"Event {event_id} deleted."}
@@ -609,7 +620,7 @@ def add_event(event: Event):
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO events (athlete_id, event_date, event_type, duration_minutes)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
         ''', (event.athlete_id, event.event_date.strftime("%Y-%m-%d"), event.event_type, event.duration_minutes))
         
         conn.commit()

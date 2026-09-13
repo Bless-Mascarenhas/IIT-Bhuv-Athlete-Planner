@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
 
 export default function Dashboard() {
-  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth } = useAthlete();
+  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth, refreshQuests } = useAthlete();
   const [goalInput, setGoalInput] = useState('');
   const [isSettingGoal, setIsSettingGoal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     if (syncHealth) await syncHealth();
+    if (refreshQuests) await refreshQuests();
     setTimeout(() => setIsSyncing(false), 800);
   };
 
