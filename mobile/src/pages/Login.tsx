@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, completeOnboarding } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +27,8 @@ export default function Login() {
       const userId = await api.login(email, password);
       if (userId) {
         await login(userId);
+        await completeOnboarding();
+        navigate('/dashboard');
       } else {
         setError('Invalid credentials.');
       }
