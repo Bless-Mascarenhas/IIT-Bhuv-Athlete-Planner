@@ -116,12 +116,12 @@ def evaluate_daily_constraints(athlete_id: int, current_date_str: str, fatigue: 
     tomorrow = current_date + timedelta(days=1)
     day_after = current_date + timedelta(days=2)
     
-    cursor.execute('''SELECT id FROM events WHERE athlete_id=? AND event_type='match' AND event_date=?''', 
+    cursor.execute('''SELECT id FROM events WHERE athlete_id=%s AND event_type='match' AND event_date=%s''', 
                    (athlete_id, tomorrow.strftime("%Y-%m-%d")))
     if cursor.fetchone():
         restrict_intensity('Moderate', "Pre-Match Tapering (24h). Max load 30%.", 30)
         
-    cursor.execute('''SELECT id FROM events WHERE athlete_id=? AND event_type='match' AND event_date=?''', 
+    cursor.execute('''SELECT id FROM events WHERE athlete_id=%s AND event_type='match' AND event_date=%s''', 
                    (athlete_id, day_after.strftime("%Y-%m-%d")))
     if cursor.fetchone():
         if constraints['max_load_percentage'] > 50:
@@ -129,7 +129,7 @@ def evaluate_daily_constraints(athlete_id: int, current_date_str: str, fatigue: 
 
     # RULE 2: Post-Match Recovery (Day after -> Active Recovery 25%. Rest if >90 mins)
     yesterday = current_date - timedelta(days=1)
-    cursor.execute('''SELECT duration_minutes FROM events WHERE athlete_id=? AND event_type='match' AND event_date=?''', 
+    cursor.execute('''SELECT duration_minutes FROM events WHERE athlete_id=%s AND event_type='match' AND event_date=%s''', 
                    (athlete_id, yesterday.strftime("%Y-%m-%d")))
     match_yesterday = cursor.fetchone()
     if match_yesterday:

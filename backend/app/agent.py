@@ -75,7 +75,7 @@ def generate_daily_quests(athlete_id: int, target_date_str: str, fatigue: int = 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''SELECT event_type, duration_minutes FROM events 
-                      WHERE athlete_id=? AND event_date=?''', (athlete_id, target_date_str))
+                      WHERE athlete_id=%s AND event_date=%s''', (athlete_id, target_date_str))
     day_event = cursor.fetchone()
     conn.close()
 
@@ -336,7 +336,7 @@ def generate_weekly_plan(athlete_id: int, start_date_str: str, fatigue: int = No
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = start_date + timedelta(days=7)
         cursor.execute('''SELECT event_date, event_type, duration_minutes FROM events 
-                          WHERE athlete_id=? AND event_date >= %s AND event_date <= ?''',
+                          WHERE athlete_id=%s AND event_date >= %s AND event_date <= %s''',
                        (athlete_id, start_date_str, end_date.strftime("%Y-%m-%d")))
         events = cursor.fetchall()
         conn.close()

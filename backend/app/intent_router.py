@@ -329,7 +329,7 @@ def execute_update_plan(athlete_id: int, message: str) -> dict:
     revision_reason = f"Athlete feedback: {message[:100]}"
 
     cursor.execute(
-        "SELECT id, duration_minutes FROM training_plans WHERE athlete_id = %s AND plan_date = ?",
+        "SELECT id, duration_minutes FROM training_plans WHERE athlete_id = %s AND plan_date = %s",
         (athlete_id, today_str)
     )
     plans = cursor.fetchall()

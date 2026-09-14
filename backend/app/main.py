@@ -428,7 +428,7 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
     cursor = conn.cursor()
 
     # Find quest
-    cursor.execute("SELECT id, athlete_id, plan_date, is_completed FROM training_plans WHERE id = ?", (quest_id,))
+    cursor.execute("SELECT id, athlete_id, plan_date, is_completed FROM training_plans WHERE id = %s", (quest_id,))
     quest = cursor.fetchone()
     if not quest:
         conn.close()
@@ -451,7 +451,7 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
     conn.commit() # Commit early to prevent race conditions when completing multiple tasks quickly
 
     # Retrieve athlete / user streak
-    cursor.execute("SELECT id, daily_streak, current_streak, last_streak_date, last_active_date FROM users WHERE id = ?", (aid,))
+    cursor.execute("SELECT id, daily_streak, current_streak, last_streak_date, last_active_date FROM users WHERE id = %s", (aid,))
     user = cursor.fetchone()
     if not user:
         # Fallback to user 1
