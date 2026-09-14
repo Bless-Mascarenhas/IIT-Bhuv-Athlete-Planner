@@ -7,9 +7,7 @@ import { api } from '../services/api';
 
 export default function Dashboard() {
   const { userId } = useAuth();
-  const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
-  const [goalInput, setGoalInput] = useState('');
-  const [isSettingGoal, setIsSettingGoal] = useState(false);
+  const { athlete, quests, healthMetrics: metrics, completeGoal, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
   const [isSyncing, setIsSyncing] = useState(false);
   const [yesterdayReport, setYesterdayReport] = useState<any>(null);
 
@@ -40,14 +38,7 @@ export default function Dashboard() {
   const stepsPct = Math.min(100, Math.round((currentSteps / targetSteps) * 100));
   const calsPct = Math.min(100, Math.round((currentCals / targetCalories) * 100));
 
-  const handleSetGoal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!goalInput.trim()) return;
-    setIsSettingGoal(true);
-    await updateGoal(goalInput);
-    setGoalInput('');
-    setIsSettingGoal(false);
-  };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: '5rem' }}>
@@ -59,56 +50,14 @@ export default function Dashboard() {
           <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#2d3436' }}>Active Goal</h3>
         </div>
         
-        {athlete?.active_goal && athlete?.goal_end_date && new Date(athlete.goal_end_date) >= new Date(new Date().toISOString().split('T')[0]) ? (
-          <div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0984e3', marginBottom: '0.5rem' }}>
-              {athlete.active_goal}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#7f8c8d', marginBottom: '1rem' }}>
-              Locked until {new Date(athlete.goal_end_date).toLocaleDateString()}
-            </div>
-            <button 
-              onClick={() => completeGoal()} 
-              disabled={loading}
-              className="neu-btn"
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', fontWeight: 800, color: '#00b894' }}
-            >
-              Mark Goal as Completed
-            </button>
+        <div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0984e3', marginBottom: '0.5rem' }}>
+            {athlete?.active_goal || 'Stay Fit'}
           </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: '0.85rem', color: '#7f8c8d', marginBottom: '1rem' }}>
-              Set a new 7-day goal. You cannot change this until it expires or is completed.
-            </div>
-            <form onSubmit={handleSetGoal} style={{ display: 'flex', gap: '8px' }}>
-              <input 
-                type="text" 
-                placeholder="e.g. Lose 10kg in 10 days" 
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)}
-                className="neu-inset"
-                style={{ 
-                  flex: 1, 
-                  padding: '0.65rem 1rem', 
-                  border: 'none', 
-                  borderRadius: '999px',
-                  backgroundColor: 'transparent',
-                  outline: 'none',
-                  fontSize: '0.85rem'
-                }}
-              />
-              <button 
-                type="submit" 
-                className="neu-btn" 
-                disabled={isSettingGoal || loading}
-                style={{ padding: '0 1rem', borderRadius: '999px', fontWeight: 700, color: '#fc5200' }}
-              >
-                {isSettingGoal ? 'Planning...' : 'Set Goal'}
-              </button>
-            </form>
+          <div style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>
+            Set from your profile settings.
           </div>
-        )}
+        </div>
       </div>
 
       {/* Biometric Health Telemetry Grid */}
