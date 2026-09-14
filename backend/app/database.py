@@ -21,7 +21,7 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE events ADD COLUMN is_deleted BOOLEAN DEFAULT false")
     except Exception:
-        pass
+        conn.rollback()
 
     # Athletes Table (preserved for backward compatibility)
     cursor.execute('''
@@ -173,7 +173,10 @@ def init_db():
 
     for col_name, col_def in user_migrations.items():
         if col_name not in existing_cols:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            except Exception:
+                conn.rollback()
 
 
     conn.commit()
