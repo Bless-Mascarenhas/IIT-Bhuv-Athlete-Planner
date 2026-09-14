@@ -178,6 +178,24 @@ def init_db():
             except Exception:
                 conn.rollback()
 
+    # ----------------------------------------------------------------
+    # DATA FIX: Reset inflated streaks on guest / incomplete accounts.
+    # A previous admin call set every user's streak to 12. Guest users
+    # and users with no email (incomplete accounts) should always start
+    # at 0 — they haven't earned a real streak yet.
+    # This block is idempotent and safe to run on every server start.
+    # ----------------------------------------------------------------
+    try:
+        # Reset all guest accounts to streak 0
+        cursor.execute(
+            "UPDATE users SET daily_streak = 0, current_streak = 0 WHERE is_guest = true"
+        )
+        # Also reset any account with no email (unverified / incomplete)
+        cursor.execute(
+            "UPDATE users SET daily_streak = 0, current_streak = 0 WHERE email IS NULL"
+        )
+    except Exception:
+        conn.rollback()
 
     conn.commit()
     conn.close()
