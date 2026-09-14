@@ -247,19 +247,6 @@ export const api = {
     return false;
   },
 
-  async addCustomQuest(questData: { athlete_id: number; plan_date: string; quest_title: string; duration_minutes: number; target_rpe: number; }): Promise<boolean> {
-    try {
-      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/quests/custom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(questData),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
-
   async getYesterdayReport(userId: number = 1): Promise<any> {
     try {
       const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/report/yesterday?user_id=${userId}`);
