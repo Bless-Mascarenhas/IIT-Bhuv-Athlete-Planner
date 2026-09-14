@@ -725,6 +725,39 @@ def get_yesterday_report(user_id: int = 1):
     }
 
 
+# --- Goals Routes ---
+
+class GoalPayload(BaseModel):
+    goal: str
+
+@app.post("/api/user/goal")
+def update_user_goal(payload: GoalPayload, user_id: int = 1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Assuming user_id refers to users table, but the system uses athletes for plan.
+    # We update both users and athletes if they exist. (Assuming users table exists)
+    try:
+        end_date = (date.today() + timedelta(days=7)).isoformat()
+        cursor.execute("UPDATE users SET active_goal = %s, goal_end_date = %s WHERE id = %s", (payload.goal, end_date, user_id))
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.post("/api/user/goal/complete")
+def complete_user_goal(user_id: int = 1):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE users SET active_goal = NULL, goal_end_date = NULL WHERE id = %s", (user_id,))
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+
 # --- Logs & Events Routes (Preserved) ---
 
 @app.post("/api/logs/submit")
