@@ -1,37 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Calendar, CheckCircle2, Circle, Flame, Target, Plus, X, ChevronDown } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, Flame, Target, ChevronDown } from 'lucide-react';
 import { useAthlete } from '../context/AthleteContext';
-import { api } from '../services/api';
 
 export default function Planner() {
-  const { athlete, quests, completeQuest, refreshQuests, loading } = useAthlete();
+  const { quests, completeQuest, loading } = useAthlete();
   
-  const [showAddForm, setShowAddForm] = useState<string | null>(null); // store date string
-  const [formTitle, setFormTitle] = useState('');
-  const [formDuration, setFormDuration] = useState(60);
-  const [formRpe, setFormRpe] = useState(5);
-  const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-
-  const handleAddQuest = async (date: string) => {
-    if (!formTitle.trim()) return;
-    setSubmitting(true);
-    const success = await api.addCustomQuest({
-      athlete_id: athlete?.id || 1,
-      plan_date: date,
-      quest_title: formTitle,
-      duration_minutes: formDuration,
-      target_rpe: formRpe,
-    });
-    if (success && refreshQuests) {
-      await refreshQuests();
-    }
-    setSubmitting(false);
-    setShowAddForm(null);
-    setFormTitle('');
-    setFormDuration(60);
-    setFormRpe(5);
-  };
   
   // Extract unique dates from the 7-day plan
   const availableDates = useMemo(() => {
@@ -118,69 +92,8 @@ export default function Planner() {
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72', backgroundColor: 'rgba(252, 82, 0, 0.05)', padding: '4px 8px', borderRadius: '8px' }}>
                   {targetCals.toLocaleString()} cals
                 </span>
-                <button
-                  onClick={() => setShowAddForm(showAddForm === date ? null : date)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '4px',
-                    cursor: 'pointer',
-                    color: '#0984e3',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  {showAddForm === date ? <X size={20} /> : <Plus size={20} />}
-                </button>
               </div>
             </div>
-
-            {showAddForm === date && (
-              <div className="neu-box" style={{ padding: '1.25rem', backgroundColor: 'rgba(9, 132, 227, 0.05)', border: '1px dashed rgba(9, 132, 227, 0.3)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0984e3', marginBottom: '12px' }}>Add Custom Quest</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input
-                    type="text"
-                    placeholder="Quest Title (e.g., Morning Run)"
-                    value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
-                    className="neu-inset"
-                    style={{ padding: '0.75rem', borderRadius: '8px', border: 'none', outline: 'none' }}
-                  />
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.75rem', color: '#636e72', fontWeight: 600 }}>Duration (mins)</label>
-                      <input
-                        type="number"
-                        value={formDuration}
-                        onChange={e => setFormDuration(Number(e.target.value))}
-                        className="neu-inset"
-                        style={{ padding: '0.75rem', borderRadius: '8px', border: 'none', outline: 'none' }}
-                      />
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.75rem', color: '#636e72', fontWeight: 600 }}>RPE (1-10)</label>
-                      <input
-                        type="number"
-                        min="1" max="10"
-                        value={formRpe}
-                        onChange={e => setFormRpe(Number(e.target.value))}
-                        className="neu-inset"
-                        style={{ padding: '0.75rem', borderRadius: '8px', border: 'none', outline: 'none' }}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleAddQuest(date)}
-                    disabled={submitting || !formTitle.trim()}
-                    className="neu-btn"
-                    style={{ padding: '0.75rem', borderRadius: '8px', fontWeight: 700, color: '#0984e3', marginTop: '4px' }}
-                  >
-                    {submitting ? 'Adding...' : 'Save Quest'}
-                  </button>
-                </div>
-              </div>
-            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {dayQuests.map((quest) => (

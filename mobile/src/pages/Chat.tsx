@@ -11,15 +11,8 @@ interface ChatMessage {
   actionTaken?: string;
 }
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-0',
-    sender: 'assistant',
-    text: "Hello Alex! I am Pace AI, your autonomous performance coach. You can log schedule changes ('I have a match tomorrow'), report soreness, or ask for recovery advice.",
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    intent: 'General QA',
-  },
-];
+
+
 
 const QUICK_PROMPTS = [
   'I have a match tomorrow',
@@ -34,8 +27,19 @@ function generateMsgId(prefix: string): string {
   return `${prefix}-${messageSeq}`;
 }
 
+// Module-level store so messages survive tab navigation
+let persistedMessages: ChatMessage[] = [
+  {
+    id: 'msg-0',
+    sender: 'assistant',
+    text: "Hello! I am Pace AI, your autonomous performance coach. You can log schedule changes ('I have a match tomorrow'), report soreness, or ask for recovery advice.",
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    intent: 'General QA',
+  },
+];
+
 export default function Chat() {
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>(persistedMessages);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -59,7 +63,11 @@ export default function Chat() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      const updated = [...prev, userMessage];
+      persistedMessages = updated;
+      return updated;
+    });
     setInputText('');
     setLoading(true);
 
@@ -73,7 +81,11 @@ export default function Chat() {
         intent: res.intent,
         actionTaken: res.action_taken,
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => {
+        const updated = [...prev, assistantMessage];
+        persistedMessages = updated;
+        return updated;
+      });
     } catch {
       const fallbackMessage: ChatMessage = {
         id: generateMsgId('ai-err'),
@@ -82,7 +94,11 @@ export default function Chat() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         intent: 'General QA',
       };
-      setMessages((prev) => [...prev, fallbackMessage]);
+      setMessages((prev) => {
+        const updated = [...prev, fallbackMessage];
+        persistedMessages = updated;
+        return updated;
+      });
     } finally {
       setLoading(false);
     }

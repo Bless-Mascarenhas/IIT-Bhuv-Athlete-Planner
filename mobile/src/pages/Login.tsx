@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { LogIn, UserPlus, Play } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, AuthError } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -30,10 +30,14 @@ export default function Login() {
         await completeOnboarding();
         navigate('/dashboard');
       } else {
-        setError('Invalid credentials.');
+        setError('Invalid email or password.');
       }
-    } catch {
-      setError('An error occurred. Server might be waking up.');
+    } catch (err) {
+      if (err instanceof AuthError) {
+        setError('Invalid email or password.');
+      } else {
+        setError('Server may be starting up, please try again in a moment.');
+      }
     } finally {
       setLoading(false);
     }

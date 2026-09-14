@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useAthlete } from '../context/AthleteContext';
 import { useAuth } from '../context/AuthContext';
 import { User, Flame, ShieldCheck, RefreshCw, Check, Trophy, LogOut } from 'lucide-react';
@@ -6,11 +6,26 @@ import { User, Flame, ShieldCheck, RefreshCw, Check, Trophy, LogOut } from 'luci
 export default function Settings() {
   const { athlete, streak, healthProviderName, syncHealth, updateGoal } = useAthlete();
   const { logout } = useAuth();
-  const [name, setName] = useState(athlete?.name || 'Alex Rivera');
-  const [sport, setSport] = useState(athlete?.sport_type || 'Football (Forward)');
-  const [goal, setGoal] = useState(athlete?.active_goal || 'Stay Fit');
+  const [name, setName] = useState('');
+  const [sport, setSport] = useState('');
+  const [goal, setGoal] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  // Sync form fields when athlete data loads (athlete is null on first render)
+  useEffect(() => {
+    if (athlete) {
+      setName(athlete.name || '');
+      setSport(
+        athlete.sport_type
+          ? athlete.position
+            ? `${athlete.sport_type} (${athlete.position})`
+            : athlete.sport_type
+          : ''
+      );
+      setGoal(athlete.active_goal || '');
+    }
+  }, [athlete]);
 
   const handleSyncHealth = async () => {
     setIsSyncing(true);

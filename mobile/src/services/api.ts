@@ -117,6 +117,17 @@ const DEFAULT_FALLBACK_QUESTS: Quest[] = [
   },
 ];
 
+/**
+ * Thrown when login credentials are rejected by the server (HTTP 401).
+ * Distinct from network/server errors so the UI can show the right message.
+ */
+export class AuthError extends Error {
+  constructor(message = 'Invalid email or password') {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
 export const api = {
   /**
    * Ping backend to wake up Render container
@@ -130,18 +141,22 @@ export const api = {
   },
 
   async login(email: string, password: string): Promise<number | null> {
-    try {
-      const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.user_id;
-      }
-    } catch {}
-    return null;
+    // Throws AuthError on 401 so the caller can show the right error message.
+    // Any other throw (TypeError, etc.) is a network/server error.
+    const res = await fetch('https://pace-backend-2oyk.onrender.com/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.status === 401) {
+      throw new AuthError();
+    }
+    if (res.ok) {
+      const data = await res.json();
+      return data.user_id;
+    }
+    // Any other non-ok status (500, 503 cold-start, etc.) is a server error
+    throw new Error(`Server error: ${res.status}`);
   },
 
   async register(name: string, email: string, password: string): Promise<number | null> {
@@ -268,8 +283,8 @@ export const api = {
           return {
             ...DEFAULT_PROFILE,
             id: streakData.id || userId,
-            daily_streak: streakData.daily_streak ?? 12,
-            current_streak: streakData.current_streak ?? 12,
+            daily_streak: streakData.daily_streak ?? 0,
+            current_streak: streakData.current_streak ?? 0,
           };
         }
         return DEFAULT_PROFILE;
@@ -365,16 +380,18 @@ export const api = {
         const data = await res.json();
         return {
           isCompleted: Boolean(data.is_completed),
-          currentStreak: data.current_streak ?? 13,
+          currentStreak: data.current_streak ?? 0,
         };
       }
     } catch {
       // Offline graceful fallback
     }
 
+    // Offline fallback — don't overwrite streak with a hardcoded value;
+    // return 0 so AthleteContext's optimistic update stays authoritative.
     return {
       isCompleted,
-      currentStreak: isCompleted ? 13 : 12,
+      currentStreak: 0,
     };
   },
 
@@ -523,6 +540,25 @@ export const api = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async addCustomQuest(quest: {
+    athlete_id: number;
+    plan_date: string;
+    quest_title: string;
+    duration_minutes: number;
+    target_rpe: number;
+  }): Promise<boolean> {
+    try {
+      const res = await fetch('https://pace-backend-2oyk.onrender.com/api/quests/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quest),
       });
       return res.ok;
     } catch {

@@ -145,43 +145,50 @@ export default function Dashboard() {
       </div>
       
       {/* Yesterday's Report */}
-      {yesterdayReport && (yesterdayReport.quests?.length > 0 || yesterdayReport.biometrics) && (
+      {yesterdayReport && (
         <div className="neu-box" style={{ padding: '1.25rem', backgroundColor: 'rgba(9, 132, 227, 0.05)', border: '1px solid rgba(9, 132, 227, 0.2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
             <CalendarDays size={20} color="#0984e3" />
             <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#2d3436' }}>Yesterday's Report</h3>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-            <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Quests Completed</span>
-              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
-                {yesterdayReport.quests?.filter((q: any) => q.is_completed).length || 0} <span style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>/ {yesterdayReport.quests?.length || 0}</span>
-              </span>
+          {(yesterdayReport.quests?.length > 0 || yesterdayReport.biometrics) ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Quests Completed</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                  {yesterdayReport.quests?.filter((q: any) => q.is_completed === true || q.is_completed === 1).length || 0} <span style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>/ {yesterdayReport.quests?.length || 0}</span>
+                </span>
+              </div>
+              {yesterdayReport.biometrics && (
+                <>
+                  <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Steps</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                      {(yesterdayReport.biometrics.steps || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Calories Burned</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                      {(yesterdayReport.biometrics.calories_burned || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Sleep</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                      {Math.round((yesterdayReport.biometrics.sleep_minutes || 0) / 60)} hrs
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-            {yesterdayReport.biometrics && (
-              <>
-                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Steps</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
-                    {(yesterdayReport.biometrics.steps || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Calories Burned</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
-                    {(yesterdayReport.biometrics.calories_burned || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Sleep</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
-                    {Math.round((yesterdayReport.biometrics.sleep_minutes || 0) / 60)} hrs
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '1rem 0', color: '#b2bec3', fontSize: '0.85rem', fontWeight: 600 }}>
+              No activity recorded yesterday yet.<br/>
+              <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Complete today's quests to start building your history.</span>
+            </div>
+          )}
         </div>
       )}
 

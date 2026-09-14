@@ -5,7 +5,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { api, type UserProfile, type Quest } from '../services/api';
+import { api, type UserProfile, type Quest, type CalendarEvent } from '../services/api';
 import { getHealthProvider, type HealthMetrics } from '../services/health';
 import { useAuth } from './AuthContext';
 
@@ -17,9 +17,14 @@ export interface AthleteContextType {
   loading: boolean;
   healthMetrics: HealthMetrics | null;
   healthProviderName: string;
+  events: CalendarEvent[];
+  eventsLoading: boolean;
   completeQuest: (questId: number) => Promise<void>;
   refreshQuests: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshEvents: () => Promise<void>;
+  addEvent: (event: CalendarEvent) => void;
+  removeEvent: (eventId: number) => void;
   updateGoal: (goal: string) => Promise<void>;
   completeGoal: () => Promise<void>;
   syncHealth: () => Promise<void>;
@@ -45,6 +50,8 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState<boolean>(true);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
   const [healthProviderName, setHealthProviderName] = useState<string>('Mock Health Provider Active');
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState<boolean>(false);
 
   
 
@@ -73,6 +80,27 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Fallback already handled in api.ts
     }
   }, [userId]);
+
+  const refreshEvents = useCallback(async () => {
+    if (!userId) return;
+    setEventsLoading(true);
+    try {
+      const data = await api.getEvents(userId);
+      setEvents(data);
+    } catch {
+      // silent
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [userId]);
+
+  const addEvent = useCallback((event: CalendarEvent) => {
+    setEvents((prev) => [...prev, event]);
+  }, []);
+
+  const removeEvent = useCallback((eventId: number) => {
+    setEvents((prev) => prev.filter((e) => e.id !== eventId));
+  }, []);
 
   const updateGoal = useCallback(async (goal: string) => {
     if (!userId) return;
@@ -126,19 +154,21 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
     async function init() {
       if (!userId) return;
       setLoading(true);
-      await Promise.all([refreshProfile(), refreshQuests(), syncHealth()]);
+      await Promise.all([refreshProfile(), refreshQuests(), syncHealth(), refreshEvents()]);
       if (isMounted) setLoading(false);
     }
     init();
     return () => {
       isMounted = false;
     };
-  }, [userId, refreshProfile, refreshQuests, syncHealth]);
+  }, [userId, refreshProfile, refreshQuests, syncHealth, refreshEvents]);
 
   /**
    * Toggle quest completion and dynamically increment streak on completion.
    */
   const completeQuest = useCallback(async (questId: number) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+
     setQuests((prevQuests) => {
       let targetNewState = false;
       const updated = prevQuests.map((q) => {
@@ -153,10 +183,14 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return q;
       });
 
-      const allCompleted = updated.length > 0 && updated.every(q => q.is_completed);
-      const previouslyAllCompleted = prevQuests.length > 0 && prevQuests.every(q => q.is_completed);
+      // Only count today's quests for the streak calculation
+      const todaysQuests = updated.filter(q => q.plan_date === todayStr);
+      const prevTodaysQuests = prevQuests.filter(q => q.plan_date === todayStr);
 
-      // Optimistically update streak based on completing ALL tasks
+      const allCompleted = todaysQuests.length > 0 && todaysQuests.every(q => q.is_completed);
+      const previouslyAllCompleted = prevTodaysQuests.length > 0 && prevTodaysQuests.every(q => q.is_completed);
+
+      // Optimistically update streak based on completing ALL of today's tasks
       setStreak((prevStreak) => {
         if (allCompleted && !previouslyAllCompleted) {
           return prevStreak + 1;
@@ -169,7 +203,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Asynchronously notify backend
       if (userId) {
         api.completeQuest(questId, targetNewState, userId).then((res) => {
-          if (res && typeof res.currentStreak === 'number') {
+          if (res && typeof res.currentStreak === 'number' && res.currentStreak > 0) {
             setStreak(res.currentStreak);
           }
         }).catch(() => {
@@ -179,7 +213,7 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return updated;
     });
-  }, []);
+  }, [userId]);
 
   const greeting = useMemo(() => {
     const firstName = athlete?.name ? athlete.name.split(' ')[0] : 'Champ';
@@ -196,9 +230,14 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
         loading,
         healthMetrics,
         healthProviderName,
+        events,
+        eventsLoading,
         completeQuest,
         refreshQuests,
         refreshProfile,
+        refreshEvents,
+        addEvent,
+        removeEvent,
         syncHealth,
         updateGoal,
         completeGoal,

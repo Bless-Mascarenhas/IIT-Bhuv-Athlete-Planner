@@ -286,7 +286,7 @@ def generate_plan(
 
         # Clear existing uncompleted/planned entries for this target date to ensure exactly one day of active quests
         cursor.execute(
-            "DELETE FROM training_plans WHERE athlete_id = %s AND plan_date = %s AND is_completed = 0",
+            "DELETE FROM training_plans WHERE athlete_id = %s AND plan_date = %s AND is_completed = false",
             (aid, target_date_str)
         )
 
@@ -305,7 +305,7 @@ def generate_plan(
                 INSERT INTO training_plans 
                 (athlete_id, plan_date, intensity_category, target_load, status, revision_reason,
                  quest_title, session_description, task_type, target_rpe, duration_minutes, is_completed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, false)
             ''', (
                 aid,
                 target_date_str,
@@ -485,27 +485,6 @@ def complete_quest_body(payload: QuestCompleteRequest):
 
 
 # --- User Profile & Streak API ---
-
-@app.post("/api/user/goal")
-def update_user_goal(goal: str = Body(..., embed=True), user_id: int = 1):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    end_date = (date.today() + timedelta(days=6)).strftime("%Y-%m-%d")
-    cursor.execute("UPDATE users SET active_goal = %s, goal_end_date = %s WHERE id = %s", (goal, end_date, user_id))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Goal updated successfully", "active_goal": goal, "goal_end_date": end_date}
-
-@app.post("/api/user/goal/complete")
-def complete_user_goal(user_id: int = 1):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET active_goal = NULL, goal_end_date = NULL WHERE id = %s", (user_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Goal completed"}
-
-
 
 @app.get("/api/user/profile")
 def get_user_profile(user_id: int = 1):

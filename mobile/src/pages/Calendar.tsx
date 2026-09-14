@@ -1,12 +1,12 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { api, type CalendarEvent } from '../services/api';
 import { Trophy, Dumbbell, Plus, X, Clock, Check, Sparkles, CalendarDays, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAthlete } from '../context/AthleteContext';
 
 export default function Calendar() {
   const { userId } = useAuth();
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { events, eventsLoading, addEvent, removeEvent } = useAthlete();
   const [showAddForm, setShowAddForm] = useState(false);
   const [formType, setFormType] = useState('');
   const [formDate, setFormDate] = useState(() => {
@@ -18,49 +18,25 @@ export default function Calendar() {
   const [submitting, setSubmitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadEvents() {
-      setLoading(true);
-      try {
-        const data = await api.getEvents(userId || 1);
-        if (isMounted) {
-          setEvents(data);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-    loadEvents();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   const handleAddEvent = async (e: FormEvent) => {
     e.preventDefault();
     if (!formDate) return;
 
     setSubmitting(true);
     try {
-      const newEvent = {
+      const newEvent: CalendarEvent = {
         athlete_id: userId || 1,
         event_date: formDate,
         event_type: formType,
         duration_minutes: Number(formDuration) || 60,
+        id: Date.now(),
       };
 
       await api.addEvent(newEvent);
-
-      setEvents((prev) => [
-        ...prev,
-        {
-          ...newEvent,
-          id: Date.now(),
-        },
-      ]);
+      addEvent(newEvent);
 
       setShowAddForm(false);
+      setFormType('');
       setStatusMsg(`Added ${newEvent.event_type} on ${newEvent.event_date}!`);
       setTimeout(() => setStatusMsg(null), 3500);
     } finally {
@@ -72,7 +48,7 @@ export default function Calendar() {
     if (confirm('Are you sure you want to delete this event?')) {
       const success = await api.deleteEvent(eventId);
       if (success) {
-        setEvents((prev) => prev.filter(e => e.id !== eventId));
+        removeEvent(eventId);
         setStatusMsg('Event deleted successfully.');
         setTimeout(() => setStatusMsg(null), 3500);
       }
@@ -88,7 +64,7 @@ export default function Calendar() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fc5200', textTransform: 'uppercase' }}>
-              Fixture & Schedule
+              Fixture &amp; Schedule
             </div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#2d3436', marginTop: '2px' }}>
               Upcoming Events
@@ -226,7 +202,7 @@ export default function Calendar() {
 
       {/* Events List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        {loading ? (
+        {eventsLoading ? (
           <div className="neu-box" style={{ textAlign: 'center', padding: '1.5rem', color: '#7f8c8d' }}>
             Loading athlete fixtures...
           </div>
@@ -314,7 +290,7 @@ export default function Calendar() {
                   >
                     {isMatch ? 'Match' : isTraining ? 'Training' : 'Event'}
                   </span>
-                  
+
                   {evt.id && (
                     <button
                       onClick={() => handleDeleteEvent(evt.id!)}
