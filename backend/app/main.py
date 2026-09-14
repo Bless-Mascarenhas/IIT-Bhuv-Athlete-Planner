@@ -368,7 +368,6 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
         ORDER BY plan_date ASC, id ASC
     ''', (athlete_id, target_date_str))
     rows = cursor.fetchall()
-    conn.close()
 
     quests = [dict(r) for r in rows]
     
@@ -412,6 +411,8 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
         ''', (athlete_id, target_date_str))
         rows = cursor.fetchall()
         quests = [dict(r) for r in rows]
+
+    conn.close()
 
     return {
         "status": "success",
@@ -589,7 +590,6 @@ def get_user_profile(user_id: int = 1):
     cursor = conn.cursor()
     cursor.execute("SELECT id, name, email, daily_streak, current_streak, sport_type, position, athlete_tier, active_goal, last_active_date, last_streak_date, created_at FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
-    conn.close()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -609,6 +609,7 @@ def get_user_profile(user_id: int = 1):
                 user_dict['current_streak'] = 0
         except Exception:
             pass
+    conn.close()
     return {
         "status": "success",
         "user": user_dict,
@@ -629,7 +630,6 @@ def get_user_streak(user_id: int = 1):
     cursor = conn.cursor()
     cursor.execute("SELECT id, name, daily_streak, current_streak, last_streak_date FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
-    conn.close()
 
     if not user:
         return {"status": "success", "id": 1, "daily_streak": 12, "current_streak": 12}
@@ -648,6 +648,7 @@ def get_user_streak(user_id: int = 1):
         except Exception:
             pass
 
+    conn.close()
     return {
         "status": "success",
         "id": user_dict["id"],

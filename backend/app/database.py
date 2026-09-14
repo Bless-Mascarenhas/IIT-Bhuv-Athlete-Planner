@@ -11,8 +11,12 @@ def get_db_connection():
     return conn
 
 def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+    except Exception as e:
+        print(f"Warning: Failed to connect to database on startup. {e}")
+        return
 
     try:
         cursor.execute("ALTER TABLE events ADD COLUMN is_deleted BOOLEAN DEFAULT false")
