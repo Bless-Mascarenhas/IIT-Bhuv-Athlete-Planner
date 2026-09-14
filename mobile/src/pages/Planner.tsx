@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Calendar, CheckCircle2, Circle, Flame, Target, Plus, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Calendar, CheckCircle2, Circle, Flame, Target, Plus, X, ChevronDown } from 'lucide-react';
 import { useAthlete } from '../context/AthleteContext';
 import { api } from '../services/api';
 
@@ -11,6 +11,7 @@ export default function Planner() {
   const [formDuration, setFormDuration] = useState(60);
   const [formRpe, setFormRpe] = useState(5);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const handleAddQuest = async (date: string) => {
     if (!formTitle.trim()) return;
@@ -38,6 +39,12 @@ export default function Planner() {
     return Array.from(new Set(dates)).sort();
   }, [quests]);
 
+  useEffect(() => {
+    if (availableDates.length > 0 && !availableDates.includes(selectedDate)) {
+      setSelectedDate(availableDates[0]);
+    }
+  }, [availableDates, selectedDate]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem', color: '#7f8c8d' }}>
@@ -51,10 +58,38 @@ export default function Planner() {
       
       {/* Header */}
       <div className="neu-box" style={{ padding: '1.25rem' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: availableDates.length > 0 ? '12px' : '0' }}>
           <Calendar size={20} color="#fc5200" />
           {availableDates.length >= 7 ? '7-Day Forecast' : 'Upcoming Plan'}
         </h3>
+        {availableDates.length > 0 && (
+          <div style={{ position: 'relative' }}>
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="neu-inset"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: 'none',
+                outline: 'none',
+                appearance: 'none',
+                fontWeight: 700,
+                color: '#0984e3',
+                fontSize: '1rem',
+                backgroundColor: 'var(--bg)'
+              }}
+            >
+              {availableDates.map(d => (
+                <option key={d} value={d}>
+                  {new Date(d).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={20} color="#0984e3" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          </div>
+        )}
       </div>
 
       {availableDates.length === 0 && (
@@ -63,8 +98,9 @@ export default function Planner() {
         </div>
       )}
 
-      {/* Stacked Days */}
-      {availableDates.map((date) => {
+      {/* Selected Day Quests */}
+      {availableDates.includes(selectedDate) && (() => {
+        const date = selectedDate;
         const dayQuests = quests.filter(q => q.plan_date === date);
         const targetSteps = dayQuests[0]?.target_steps ?? 10000;
         const targetCals = dayQuests[0]?.target_calories ?? 2500;
@@ -207,7 +243,7 @@ export default function Planner() {
             </div>
           </div>
         );
-      })}
+      })()}
     </div>
   );
 }

@@ -200,7 +200,7 @@ export default function Dashboard() {
             <div className="neu-box" style={{ padding: '1rem', textAlign: 'center', color: '#7f8c8d' }}>
               No quests scheduled for today.
             </div>
-          ) : quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).slice(0, 3).map((quest) => (
+          ) : quests.filter(q => q.plan_date === new Date().toISOString().split('T')[0]).map((quest) => (
             <div key={quest.id} className="neu-box" style={{ padding: '1rem', display: 'flex', gap: '12px', alignItems: 'center', opacity: quest.is_completed ? 0.6 : 1 }}>
               <div style={{ flex: 1 }}>
                 <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: quest.is_completed ? '#7f8c8d' : '#2d3436', textDecoration: quest.is_completed ? 'line-through' : 'none', marginBottom: '4px' }}>
