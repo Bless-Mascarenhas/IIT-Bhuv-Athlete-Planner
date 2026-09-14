@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
-import { Activity, Moon, Heart, Zap, ArrowRight, Target, CheckCircle2, Circle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, Moon, Heart, Zap, ArrowRight, Target, CheckCircle2, Circle, RefreshCw, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 
 export default function Dashboard() {
+  const { userId } = useAuth();
   const { athlete, quests, healthMetrics: metrics, updateGoal, completeGoal, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
   const [goalInput, setGoalInput] = useState('');
   const [isSettingGoal, setIsSettingGoal] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [yesterdayReport, setYesterdayReport] = useState<any>(null);
+
+  useEffect(() => {
+    if (userId) {
+      api.getYesterdayReport(userId).then(setYesterdayReport);
+    }
+  }, [userId]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -184,6 +194,47 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Yesterday's Report */}
+      {yesterdayReport && (yesterdayReport.quests?.length > 0 || yesterdayReport.biometrics) && (
+        <div className="neu-box" style={{ padding: '1.25rem', backgroundColor: 'rgba(9, 132, 227, 0.05)', border: '1px solid rgba(9, 132, 227, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <CalendarDays size={20} color="#0984e3" />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#2d3436' }}>Yesterday's Report</h3>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+            <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Quests Completed</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                {yesterdayReport.quests?.filter((q: any) => q.is_completed).length || 0} <span style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>/ {yesterdayReport.quests?.length || 0}</span>
+              </span>
+            </div>
+            {yesterdayReport.biometrics && (
+              <>
+                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Steps</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                    {(yesterdayReport.biometrics.steps || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Calories Burned</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                    {(yesterdayReport.biometrics.calories_burned || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ backgroundColor: 'var(--bg)', padding: '0.8rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72' }}>Sleep</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3436' }}>
+                    {Math.round((yesterdayReport.biometrics.sleep_minutes || 0) / 60)} hrs
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       
       {/* Today's Schedule Preview */}

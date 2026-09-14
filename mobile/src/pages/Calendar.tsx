@@ -1,8 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { api, type CalendarEvent } from '../services/api';
 import { Trophy, Dumbbell, Plus, X, Clock, Check, Sparkles, CalendarDays, Trash2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Calendar() {
+  const { userId } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -21,7 +23,7 @@ export default function Calendar() {
     async function loadEvents() {
       setLoading(true);
       try {
-        const data = await api.getEvents(1);
+        const data = await api.getEvents(userId || 1);
         if (isMounted) {
           setEvents(data);
         }
@@ -42,7 +44,7 @@ export default function Calendar() {
     setSubmitting(true);
     try {
       const newEvent = {
-        athlete_id: 1,
+        athlete_id: userId || 1,
         event_date: formDate,
         event_type: formType,
         duration_minutes: Number(formDuration) || 60,

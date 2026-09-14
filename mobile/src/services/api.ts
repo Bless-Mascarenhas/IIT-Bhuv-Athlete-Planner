@@ -247,6 +247,16 @@ export const api = {
     return false;
   },
 
+  async getYesterdayReport(userId: number = 1): Promise<any> {
+    try {
+      const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/report/yesterday?user_id=${userId}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return null;
+  },
+
   async getProfile(userId: number = 1): Promise<UserProfile> {
     try {
       const res = await fetch(`https://pace-backend-2oyk.onrender.com/api/user/profile?user_id=${userId}`);
