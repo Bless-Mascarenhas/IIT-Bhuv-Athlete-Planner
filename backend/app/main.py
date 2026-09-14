@@ -538,7 +538,7 @@ def get_user_streak(user_id: int = 1):
     user = cursor.fetchone()
 
     if not user:
-        return {"status": "success", "id": 1, "daily_streak": 12, "current_streak": 12}
+        return {"status": "success", "id": user_id, "daily_streak": 0, "current_streak": 0}
 
     user_dict = dict(user)
     if user_dict['last_streak_date']:
@@ -808,12 +808,13 @@ def get_dataset_health():
 
 @app.post("/admin/restore-streaks")
 def restore_streaks():
+    """Resets only null/corrupt streak values to 0. Never inflates real earned streaks."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Restore existing accounts to a streak of 12
-    cursor.execute("UPDATE users SET current_streak = 12, daily_streak = 12 WHERE is_guest = false")
-    # Make sure guest accounts stay at 0
+    # Only reset users with NULL streaks — do NOT overwrite real earned streak values
+    cursor.execute("UPDATE users SET current_streak = 0, daily_streak = 0 WHERE current_streak IS NULL OR daily_streak IS NULL")
+    # Guest accounts always start at 0
     cursor.execute("UPDATE users SET current_streak = 0, daily_streak = 0 WHERE is_guest = true")
     conn.commit()
     conn.close()
-    return {"message": "Existing accounts restored to 12"}
+    return {"message": "Null streaks reset to 0. Existing earned streaks preserved."}
