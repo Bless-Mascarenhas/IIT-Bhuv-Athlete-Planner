@@ -447,6 +447,7 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
         SET is_completed = %s, completed_at = %s, status = %s
         WHERE id = %s
     ''', (completed_int, now_ts, status_str, quest_id))
+    conn.commit() # Commit early to prevent race conditions when completing multiple tasks quickly
 
     # Retrieve athlete / user streak
     cursor.execute("SELECT id, daily_streak, current_streak, last_streak_date, last_active_date FROM users WHERE id = ?", (aid,))
@@ -559,6 +560,20 @@ def get_user_profile(user_id: int = 1):
         raise HTTPException(status_code=404, detail="User not found")
 
     user_dict = dict(user)
+
+    # Streak loss logic: If the last time they completed a daily streak was more than 1 day ago, reset it to 0
+    if user_dict['last_streak_date']:
+        try:
+            last_streak_d = user_dict['last_streak_date']
+            if isinstance(last_streak_d, str):
+                last_streak_d = datetime.strptime(last_streak_d, "%Y-%m-%d").date()
+            if (date.today() - last_streak_d).days > 1:
+                cursor.execute("UPDATE users SET daily_streak = 0, current_streak = 0 WHERE id = %s", (user_id,))
+                conn.commit()
+                user_dict['daily_streak'] = 0
+                user_dict['current_streak'] = 0
+        except Exception:
+            pass
     return {
         "status": "success",
         "user": user_dict,
@@ -584,13 +599,27 @@ def get_user_streak(user_id: int = 1):
     if not user:
         return {"status": "success", "id": 1, "daily_streak": 12, "current_streak": 12}
 
+    user_dict = dict(user)
+    if user_dict['last_streak_date']:
+        try:
+            last_streak_d = user_dict['last_streak_date']
+            if isinstance(last_streak_d, str):
+                last_streak_d = datetime.strptime(last_streak_d, "%Y-%m-%d").date()
+            if (date.today() - last_streak_d).days > 1:
+                cursor.execute("UPDATE users SET daily_streak = 0, current_streak = 0 WHERE id = %s", (user_id,))
+                conn.commit()
+                user_dict['daily_streak'] = 0
+                user_dict['current_streak'] = 0
+        except Exception:
+            pass
+
     return {
         "status": "success",
-        "id": user["id"],
-        "name": user["name"],
-        "daily_streak": user["daily_streak"],
-        "current_streak": user["current_streak"],
-        "last_streak_date": user["last_streak_date"]
+        "id": user_dict["id"],
+        "name": user_dict["name"],
+        "daily_streak": user_dict["daily_streak"],
+        "current_streak": user_dict["current_streak"],
+        "last_streak_date": user_dict["last_streak_date"]
     }
 
 
