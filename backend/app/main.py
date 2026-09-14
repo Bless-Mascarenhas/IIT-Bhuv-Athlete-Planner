@@ -50,7 +50,7 @@ def register_user(req: RegisterRequest):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO users (name, email, password_hash, is_guest) VALUES (%s, %s, %s, false) RETURNING id",
+            "INSERT INTO users (name, email, password_hash, is_guest, daily_streak, current_streak) VALUES (%s, %s, %s, false, 0, 0) RETURNING id",
             (req.name, req.email, req.password)
         )
         user_id = cursor.fetchone()['id']
@@ -78,7 +78,7 @@ def guest_login():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO users (name, sport_type, is_guest) VALUES ('Guest', 'General', true) RETURNING id"
+        "INSERT INTO users (name, sport_type, is_guest, daily_streak, current_streak) VALUES ('Guest', 'General', true, 0, 0) RETURNING id"
     )
     user_id = cursor.fetchone()['id']
     conn.commit()

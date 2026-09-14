@@ -178,24 +178,37 @@ def init_db():
             except Exception:
                 conn.rollback()
 
-    # ----------------------------------------------------------------
-    # DATA FIX: Reset inflated streaks on guest / incomplete accounts.
-    # A previous admin call set every user's streak to 12. Guest users
-    # and users with no email (incomplete accounts) should always start
-    # at 0 — they haven't earned a real streak yet.
-    # This block is idempotent and safe to run on every server start.
-    # ----------------------------------------------------------------
-    try:
-        # Reset all guest accounts to streak 0
-        cursor.execute(
-            "UPDATE users SET daily_streak = 0, current_streak = 0 WHERE is_guest = true"
+    # ── One-time schema migrations ──────────────────────────────────────
+    # A migrations table tracks which fixes have already been applied.
+    # Each migration runs exactly once, then is recorded and never re-runs.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        # Also reset any account with no email (unverified / incomplete)
-        cursor.execute(
-            "UPDATE users SET daily_streak = 0, current_streak = 0 WHERE email IS NULL"
-        )
-    except Exception:
-        conn.rollback()
+    ''')
+
+    def run_once(name: str, sql: str):
+        """Execute sql exactly once, guarded by the migrations table."""
+        try:
+            cursor.execute("SELECT 1 FROM schema_migrations WHERE name = %s", (name,))
+            if cursor.fetchone():
+                return  # already applied
+            cursor.execute(sql)
+            cursor.execute("INSERT INTO schema_migrations (name) VALUES (%s)", (name,))
+        except Exception:
+            conn.rollback()
+
+    # Fix: reset streaks that were incorrectly set to 12 by the old
+    # /admin/restore-streaks endpoint. Only touches guest accounts and
+    # accounts with no email — registered users with real earned streaks
+    # are left untouched.
+    run_once(
+        "fix_inflated_guest_streaks_v1",
+        "UPDATE users SET daily_streak = 0, current_streak = 0 WHERE is_guest = true OR email IS NULL"
+    )
+    # ───────────────────────────────────────────────────────────────────
 
     conn.commit()
     conn.close()
