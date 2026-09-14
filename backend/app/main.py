@@ -376,7 +376,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
     # A single day could have multiple quests, so we count unique dates.
     unique_dates = set(q['plan_date'] for q in quests)
     if len(unique_dates) < 7 and target_date_str == date.today().strftime("%Y-%m-%d"):
-        cursor.execute("SELECT active_goal FROM users WHERE id = ?", (athlete_id,))
+        cursor.execute("SELECT active_goal FROM users WHERE id = %s", (athlete_id,))
         user_row = cursor.fetchone()
         active_goal = user_row["active_goal"] if user_row and user_row["active_goal"] else "Stay Fit"
         
@@ -499,6 +499,41 @@ def _complete_quest_logic(quest_id: int, athlete_id: Optional[int] = None, is_co
         "daily_streak": daily_streak,
         "current_streak": daily_streak
     }
+
+
+class QuestCustomPayload(BaseModel):
+    athlete_id: int
+    plan_date: str
+    quest_title: str
+    duration_minutes: int
+    target_rpe: int
+    task_type: str = "custom"
+    session_description: str = ""
+    intensity_category: str = "Moderate"
+    target_steps: int = 10000
+    target_calories: int = 2500
+
+@app.post("/api/quests/custom")
+def add_custom_quest(payload: QuestCustomPayload):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    target_load = payload.target_rpe * payload.duration_minutes
+    cursor.execute('''
+        INSERT INTO training_plans (
+            athlete_id, plan_date, intensity_category, target_load, 
+            status, revision_reason, quest_title, session_description, 
+            task_type, target_rpe, duration_minutes, target_steps, 
+            target_calories, is_completed
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
+    ''', (
+        payload.athlete_id, payload.plan_date, payload.intensity_category,
+        target_load, "planned", "", payload.quest_title, payload.session_description,
+        payload.task_type, payload.target_rpe, payload.duration_minutes,
+        payload.target_steps, payload.target_calories
+    ))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
 
 
 @app.post("/api/quests/{quest_id}/complete")
