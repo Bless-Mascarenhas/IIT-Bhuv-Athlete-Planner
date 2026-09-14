@@ -286,7 +286,7 @@ def generate_plan(
 
         # Clear existing uncompleted/planned entries for this target date to ensure exactly one day of active quests
         cursor.execute(
-            "DELETE FROM training_plans WHERE athlete_id = %s AND plan_date = ?",
+            "DELETE FROM training_plans WHERE athlete_id = %s AND plan_date = %s AND is_completed = 0",
             (aid, target_date_str)
         )
 
@@ -384,7 +384,7 @@ def get_today_plan(athlete_id: int = 1, plan_date: Optional[str] = None):
         plan_response = generate_weekly_plan(athlete_id, target_date_str, None, None, active_goal)
         
         # Clear existing uncompleted entries from today forward
-        cursor.execute("DELETE FROM training_plans WHERE athlete_id = %s AND plan_date >= ?", (athlete_id, target_date_str))
+        cursor.execute("DELETE FROM training_plans WHERE athlete_id = %s AND plan_date >= %s AND is_completed = 0", (athlete_id, target_date_str))
         
         for day in plan_response.get("weekly_plan", []):
             plan_date = day["date"]
@@ -697,6 +697,33 @@ def get_today_health(user_id: int = 1, log_date: Optional[str] = None):
         "data": dict(row)
     }
 
+@app.get("/api/report/yesterday")
+def get_yesterday_report(user_id: int = 1):
+    """Returns yesterday's quests and biometric telemetry."""
+    yesterday_str = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get Quests
+    cursor.execute('''
+        SELECT * FROM training_plans WHERE athlete_id = %s AND plan_date = %s
+    ''', (user_id, yesterday_str))
+    quests = [dict(r) for r in cursor.fetchall()]
+
+    # Get Biometrics
+    cursor.execute('''
+        SELECT * FROM google_fit_logs WHERE user_id = %s AND log_date = %s
+    ''', (user_id, yesterday_str))
+    bio = cursor.fetchone()
+    conn.close()
+
+    return {
+        "status": "success",
+        "date": yesterday_str,
+        "quests": quests,
+        "biometrics": dict(bio) if bio else None
+    }
+
 
 # --- Logs & Events Routes (Preserved) ---
 
@@ -725,7 +752,7 @@ def get_events(athlete_id: int = 1):
     """Returns calendar events / matches for the athlete."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, athlete_id, event_date, event_type, duration_minutes FROM events WHERE athlete_id = %s ORDER BY event_date ASC", (athlete_id,))
+    cursor.execute("SELECT id, athlete_id, event_date, event_type, duration_minutes FROM events WHERE athlete_id = %s AND is_deleted = false ORDER BY event_date ASC", (athlete_id,))
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -736,7 +763,7 @@ def delete_event(event_id: int):
     """Deletes an event by ID."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM events WHERE id = %s", (event_id,))
+    cursor.execute("UPDATE events SET is_deleted = true WHERE id = %s", (event_id,))
     conn.commit()
     conn.close()
     return {"status": "success", "message": f"Event {event_id} deleted."}

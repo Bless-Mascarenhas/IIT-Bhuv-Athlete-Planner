@@ -14,6 +14,11 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    try:
+        cursor.execute("ALTER TABLE events ADD COLUMN is_deleted BOOLEAN DEFAULT false")
+    except Exception:
+        pass
+
     # Athletes Table (preserved for backward compatibility)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS athletes (
@@ -62,6 +67,7 @@ def init_db():
         event_date DATE NOT NULL,
         event_type TEXT NOT NULL,
         duration_minutes INTEGER,
+        is_deleted BOOLEAN DEFAULT false,
         FOREIGN KEY(athlete_id) REFERENCES athletes(id) ON DELETE CASCADE
     )
     ''')
