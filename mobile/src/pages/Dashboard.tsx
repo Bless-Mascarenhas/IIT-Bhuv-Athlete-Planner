@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, Moon, Heart, Zap, ArrowRight, Target, CheckCircle2, Circle, RefreshCw, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
@@ -7,7 +7,7 @@ import { api } from '../services/api';
 
 export default function Dashboard() {
   const { userId } = useAuth();
-  const { athlete, quests, healthMetrics: metrics, completeGoal, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
+  const { athlete, quests, healthMetrics: metrics, loading, syncHealth, refreshQuests, completeQuest } = useAthlete();
   const [isSyncing, setIsSyncing] = useState(false);
   const [yesterdayReport, setYesterdayReport] = useState<any>(null);
 
