@@ -9,9 +9,9 @@ export interface UserProfile {
   name: string;
   email?: string;
   sport_type?: string;
+  position?: string;
   active_goal?: string;
   goal_end_date?: string;
-  position?: string;
   athlete_tier?: string;
   daily_streak: number;
   current_streak: number;
@@ -293,6 +293,8 @@ export const api = {
       return {
         id: data.id || userId,
         name: data.name || DEFAULT_PROFILE.name,
+        email: data.email || data.user?.email,
+        // Backend now returns these at top-level; user-nested is a safe fallback
         sport_type: data.sport_type || data.user?.sport_type || DEFAULT_PROFILE.sport_type,
         position: data.position || data.user?.position || DEFAULT_PROFILE.position,
         daily_streak: data.daily_streak ?? 0,

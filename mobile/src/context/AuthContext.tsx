@@ -7,6 +7,7 @@ interface AuthContextType {
   hasOnboarded: boolean;
   userId: number | null;
   isGuest: boolean;
+  localProfile: any | null;
   login: (userId: number, isGuest?: boolean) => Promise<void>;
   startLocalGuest: (formData: any) => Promise<void>;
   completeOnboarding: () => Promise<void>;
@@ -22,6 +23,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userId, setUserId] = useState<number | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // Stores onboarding form data so the UI can display it immediately
+  // while the background cloud sync is in progress
+  const [localProfile, setLocalProfile] = useState<any | null>(null);
 
   useEffect(() => {
     // 1. Fire wake up ping immediately (Cold Start Hack)
@@ -65,11 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsGuest(false);
     }
     
+    // Clear localProfile once we have a confirmed cloud userId
+    setLocalProfile(null);
     setUserId(newUserId);
     setIsLoggedIn(true);
   };
 
   const startLocalGuest = async (formData: any) => {
+    // Store the form data immediately so the UI can display it right away
+    // before the backend cloud sync completes
+    setLocalProfile(formData);
     // Instantly bypass all loading/login screens and set default fallback ID (1)
     setUserId(1); 
     setIsLoggedIn(true);
@@ -84,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cloudUserId = await api.loginGuest();
         if (cloudUserId) {
           await api.updateProfile(cloudUserId, formData);
+          // login() will clear localProfile and set the real userId
           await login(cloudUserId, true);
         }
       } catch (e) {
@@ -114,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasOnboarded,
         userId,
         isGuest,
+        localProfile,
         login,
         startLocalGuest,
         completeOnboarding,

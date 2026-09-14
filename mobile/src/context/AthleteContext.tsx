@@ -57,19 +57,36 @@ export const AthleteProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   
 
-  const { userId } = useAuth();
+  const { userId, localProfile } = useAuth();
   const healthProvider = useMemo(() => getHealthProvider(), []);
 
   const refreshProfile = useCallback(async () => {
     if (!userId) return;
     try {
+      // If the user just completed onboarding (still on temp userId=1 while
+      // cloud sync runs in background), use their locally entered data
+      // immediately instead of fetching the seed user "Champ" from the backend.
+      if (localProfile && userId === 1) {
+        setAthlete({
+          id: 1,
+          name: localProfile.name || '',
+          sport_type: localProfile.sport_type || '',
+          position: localProfile.position || '',
+          active_goal: localProfile.active_goal || 'Stay Fit',
+          athlete_tier: localProfile.athlete_tier || 'Semi-Pro',
+          daily_streak: 0,
+          current_streak: 0,
+        });
+        setStreak(0);
+        return;
+      }
       const profile = await api.getProfile(userId);
       setAthlete(profile);
       setStreak(profile.current_streak ?? 0);
     } catch {
       // Fallback already handled in api.ts
     }
-  }, [userId]);
+  }, [userId, localProfile]);
 
   const refreshQuests = useCallback(async () => {
     if (!userId) return;
