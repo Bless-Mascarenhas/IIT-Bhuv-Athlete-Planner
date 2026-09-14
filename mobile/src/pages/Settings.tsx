@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { User, Flame, ShieldCheck, RefreshCw, Check, Trophy, LogOut } from 'lucide-react';
 
 export default function Settings() {
-  const { athlete, streak, healthProviderName, syncHealth } = useAthlete();
+  const { athlete, streak, healthProviderName, syncHealth, updateGoal } = useAthlete();
   const { logout } = useAuth();
   const [name, setName] = useState(athlete?.name || 'Alex Rivera');
   const [sport, setSport] = useState(athlete?.sport_type || 'Football (Forward)');
+  const [goal, setGoal] = useState(athlete?.active_goal || 'Stay Fit');
   const [isSyncing, setIsSyncing] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
@@ -25,8 +26,11 @@ export default function Settings() {
     }
   };
 
-  const handleSaveProfile = (e: FormEvent) => {
+  const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
+    if (goal !== athlete?.active_goal) {
+      await updateGoal(goal);
+    }
     setStatusMsg('Profile preferences updated!');
     setTimeout(() => setStatusMsg(null), 3000);
   };
@@ -221,6 +225,27 @@ export default function Settings() {
               type="text"
               value={sport}
               onChange={(e) => setSport(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.85rem',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: 'var(--bg)',
+                boxShadow: 'inset 2px 2px 4px rgba(163,177,198,0.6), inset -2px -2px 4px rgba(255,255,255,0.7)',
+                color: 'var(--text)',
+                fontSize: '0.85rem',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#636e72', display: 'block', marginBottom: '4px' }}>
+              Active Goal
+            </label>
+            <input
+              type="text"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.65rem 0.85rem',
